@@ -20,7 +20,8 @@ deploy: $(patsubst %,deploy-%,$(REGIONS))
 deploy-%: $(CERTBOT_ZIP_TARGETS)
 	for ver in $(PYTHON_VERSIONS); do \
 		aws --region $(patsubst deploy-%,%,$@) lambda publish-layer-version \
-			--layer-name certbottest --description "Certbot for Python $$ver" \
+			--layer-name certbottest-$$(echo $$ver | sed -e 's/\.//') \
+			--description "Certbot for Python $$ver" \
 			--compatible-runtimes python$$ver --license-info Apache-2.0 \
 			--zip-file fileb://certbot-layer-$$ver.zip; \
 	done
