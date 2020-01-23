@@ -28,7 +28,7 @@ def main():
                     base["type"] != "file" or
                     base["size"] != s.st_size or
                     base["mode"] != s.st_mode))):
-                files.add(pathname[len(base_dir) + 1:])
+                files.add(path[len(base_dir) + 1:])
 
     maj_min = "%d.%d" % (version_info[0], version_info[1])
     zipname = "/certbot-layer-%s.zip" % maj_min
