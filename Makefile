@@ -15,9 +15,9 @@ certbot-layer-py%.zip: certbot-layer-%.dockerfile createzip.py
 clean:
 	rm certbot-layer-*.zip
 
-deploy: $(patsubst %,deploy-%,$(REGIONS))
+deploy-certbot-layer: $(patsubst %,deploy-certbot-layer-%,$(REGIONS))
 
-deploy-%: $(CERTBOT_ZIP_TARGETS)
-	./deploy.py --region $(patsubst deploy-%,%,$@) $(PYTHON_VERSIONS)
+deploy-certbot-layer-%: $(CERTBOT_ZIP_TARGETS)
+	./deploy-certbot-layer.py --region $(patsubst deploy-%,%,$@) $(PYTHON_VERSIONS)
 
 .PHONY: all clean deploy $(DEPLOY_TARGETS)
