@@ -63,3 +63,8 @@ def main(args):
         lam.add_layer_version_permission(
             LayerName=layer_name, VersionNumber=lam_ver, StatementId="Public",
             Action="lambda:GetLayerVersion", Principal="*")
+
+    return 0
+
+if __name__ == "__main__":
+    sys_exit(main(argv[1:]))
