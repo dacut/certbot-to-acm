@@ -83,45 +83,45 @@ Mappings:
       python38: "arn:aws-us-gov:lambda:us-gov-west-1:678832456889:layer:certbot-py38:1"
   CertbotToACMFunctionZIP:
     ap-east-1:
-      version: "PNFngJTa1v_VJDJgJH9vZQUAL8iczlba"
+      version: "MZsbCcXEZmeKc_UDrr56iHYAt.q.FNoY"
     ap-northeast-1:
-      version: "tS09ZzL5A6fTaoIo8Is0R12c8Yd6cjK5"
+      version: "KUVpb3z4p685NogqGshYVgnAsrBSwCSY"
     ap-northeast-2:
-      version: "vp5kCoNWgyK08n_duJZME4YeI7NpFwlU"
+      version: "e6CEwA19.Gmqcf.iEbqv0zdR3JpfkLHx"
     ap-south-1:
-      version: "fEWTYzJ5XisT31pcIMrFG7.azQgccZ_A"
+      version: "s6xVpxHFK_.rqQgVGXQm4GSz9qT0xvvf"
     ap-southeast-1:
-      version: ".sy3cb2WDQRt.woiyYn6vxCpvGMZNYZr"
+      version: "XMf_z7c4enAfURuYfw9I5idRVwQaW5HS"
     ap-southeast-2:
-      version: "1.7f2FMXyC0eSPRZbPcyWAK6Ak9yq2p_"
+      version: "ogiSf1fFMdY4a4x23Y.XOwDOjlROnp7W"
     ca-central-1:
-      version: "qGpbXLmvvKaV0OR4GO7rU1WTfZNtOPBo"
+      version: "r3_2WcyZReJZDNzR5KyRHrGvoL98.kZ9"
     eu-central-1:
-      version: "KYokNoLFVlFO759XYQv_SR0QFwCRoBUL"
+      version: "HvUVR_kpBdim8ljPC9lQGxlxE4ZvNiMg"
     eu-north-1:
-      version: "Atg1Rd8nYrUxstnWAqge5KeveistLl7X"
+      version: "V.OXo.ZUj9IzOdj18OiHDN0fx.YbBlkw"
     eu-west-1:
-      version: "e_SzJwbaVBSwerWusvKeGEtQpgmE0rMd"
+      version: "ZzC3vYuUYyiS1pHNiL.5ue1NJvVhynSn"
     eu-west-2:
-      version: "n9teMZcIkUw4.iSyz.KC5v5dk0Xo5.JX"
+      version: "KyuMFitdMb01O1OBDReGAMPCKEldrNBe"
     eu-west-3:
-      version: "3Nceu_F94ajSmZ1.QLj7JxDrntpPgfBi"
+      version: "_2u89TNr4EtPsjcB4x2St5cp08s82OhZ"
     me-south-1:
-      version: "je3SXXYELLogIdFpZwJxBw2Ls70i.FP_"
+      version: "sKUNDWickKZcP40s9BI_O9sWmEySsUPG"
     sa-east-1:
-      version: "nC2vnoj3bx7Bl1DRXtj3keW388SNa7IT"
+      version: "vdVmjfTODEjKKHou7lt7J908FQQEzzrW"
     us-east-1:
-      version: "3GXFbNo7SSIu0tfYzdVD00MfG8kKcVGH"
+      version: "D8fQxcqOoSKERkZ.eW6EauluhoWF16Sm"
     us-east-2:
-      version: "2pQ4Oid277C8WYsXkTYSEDBu1bfw4xWw"
-    us-west-1:
-      version: "oSp2Ju4VCktqvWE6.JN7rRB5YQpTe3_e"
-    us-west-2:
-      version: "DMuCFqAsEMyGX4oUxbm.oxiG0pXlcW.B"
+      version: ".3bkAChOZdlIcS5f0lQAwqa680hPHnml"
     us-gov-east-1:
-      version: "vwV1e2SU.YJJ8gOAD8Cf2isRVwcGg0EU"
+      version: "JwkjmixsERNugXUwBlmUSa_e1n68mg6J"
     us-gov-west-1:
-      version: "zmmOO37dIWtPUFJzNepy1m9oWVY2epmH"
+      version: "sKI4VctUnOohUVjnQ5KriaJkfKAslCq."
+    us-west-1:
+      version: "sF5ckTFyv2384Yye3XhJOlRyAZiM0TFm"
+    us-west-2:
+      version: "wwP8UyXoDaEjV7OEbfNQJ72ay.MjlLln"
 Resources:
   CertbotToACMFunctionPolicy:
     Type: "AWS::IAM::ManagedPolicy"
@@ -135,6 +135,15 @@ Resources:
               - "acm:GetCertificate"
               - "acm:ImportCertificate"
               - "acm:ListCertificates"
+              - "route53:ListHostedZones"
+              - "route53:ListHostedZonesByName"
+              - "route53:GetHostedZone"
+              - "route53:GetChange"
+              - "route53:ChangeResourceRecordSets"
+              - "route53:ListResourceRecordSets"
+              - "s3:GetObjectAcl"
+              - "s3:PutObjectAcl"
+              - "s3:ListBucket"
             Resource: "*"
   CertbotToACMFunctionRole:
     Type: "AWS::IAM::Role"
