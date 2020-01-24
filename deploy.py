@@ -55,7 +55,7 @@ def main(args):
                 "S3Bucket": s3_bucket, "S3Key": filename,
                 "S3ObjectVersion": s3_version,
             },
-            CompatibleRuntimes=f"python{ver}",
+            CompatibleRuntimes=[f"python{ver}"],
             LicenseInfo="Apache-2.0")
         lam_arn = lam_result["LayerArn"]
         lam_ver = lam_result["Version"]
