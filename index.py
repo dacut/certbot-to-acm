@@ -29,14 +29,6 @@ CERT_FILENAME_PATTERN = f"{CERTBOT_CONFIG_DIR}/live/*/cert.pem"
 CHAIN_FILENAME_PATTERN = f"{CERTBOT_CONFIG_DIR}/live/*/chain.pem"
 KEY_FILENAME_PATTERN = f"{CERTBOT_CONFIG_DIR}/live/*/privkey.pem"
 
-def get_certificate_tags(arn: str) -> Dict[str, str]:
-    """
-    Return the tags for the specified certificate.
-    """
-    acm = boto3.client("acm")
-    result = acm.list_tags_for_certificate(CertificateArn=arn)
-    return {item["Key"]: item["Value"] for item in result["Tags"]}
-
 def get_list_certs_kw(filters: Dict[str, Any]) -> Dict[str, Any]:
     """
     Return the keyword arguments to use for list_certificates given the
