@@ -1,0 +1,177 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Mappings:
+  CertbotLayer:
+    ap-east-1:
+      python36: "arn:aws:lambda:ap-east-1:966028770618:layer:certbot-py36:2"
+      python37: "arn:aws:lambda:ap-east-1:966028770618:layer:certbot-py37:2"
+      python38: "arn:aws:lambda:ap-east-1:966028770618:layer:certbot-py38:1"
+    ap-northeast-1:
+      python36: "arn:aws:lambda:ap-northeast-1:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:ap-northeast-1:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:ap-northeast-1:966028770618:layer:certbot-py38:1"
+    ap-northeast-2:
+      python36: "arn:aws:lambda:ap-northeast-2:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:ap-northeast-2:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:ap-northeast-2:966028770618:layer:certbot-py38:1"
+    ap-south-1:
+      python36: "arn:aws:lambda:ap-south-1:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:ap-south-1:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:ap-south-1:966028770618:layer:certbot-py38:1"
+    ap-southeast-1:
+      python36: "arn:aws:lambda:ap-southeast-1:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:ap-southeast-1:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:ap-southeast-1:966028770618:layer:certbot-py38:1"
+    ap-southeast-2:
+      python36: "arn:aws:lambda:ap-southeast-2:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:ap-southeast-2:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:ap-southeast-2:966028770618:layer:certbot-py38:1"
+    ca-central-1:
+      python36: "arn:aws:lambda:ca-central-1:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:ca-central-1:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:ca-central-1:966028770618:layer:certbot-py38:1"
+    eu-central-1:
+      python36: "arn:aws:lambda:eu-central-1:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:eu-central-1:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:eu-central-1:966028770618:layer:certbot-py38:1"
+    eu-north-1:
+      python36: "arn:aws:lambda:eu-north-1:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:eu-north-1:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:eu-north-1:966028770618:layer:certbot-py38:1"
+    eu-west-1:
+      python36: "arn:aws:lambda:eu-west-1:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:eu-west-1:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:eu-west-1:966028770618:layer:certbot-py38:1"
+    eu-west-2:
+      python36: "arn:aws:lambda:eu-west-2:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:eu-west-2:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:eu-west-2:966028770618:layer:certbot-py38:1"
+    eu-west-3:
+      python36: "arn:aws:lambda:eu-west-3:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:eu-west-3:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:eu-west-3:966028770618:layer:certbot-py38:1"
+    me-south-1:
+      python36: "arn:aws:lambda:me-south-1:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:me-south-1:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:me-south-1:966028770618:layer:certbot-py38:1"
+    sa-east-1:
+      python36: "arn:aws:lambda:sa-east-1:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:sa-east-1:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:sa-east-1:966028770618:layer:certbot-py38:1"
+    us-east-1:
+      python36: "arn:aws:lambda:us-east-1:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:us-east-1:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:us-east-1:966028770618:layer:certbot-py38:1"
+    us-east-2:
+      python36: "arn:aws:lambda:us-east-2:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:us-east-2:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:us-east-2:966028770618:layer:certbot-py38:1"
+    us-west-1:
+      python36: "arn:aws:lambda:us-west-1:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:us-west-1:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:us-west-1:966028770618:layer:certbot-py38:1"
+    us-west-2:
+      python36: "arn:aws:lambda:us-west-2:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:us-west-2:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:us-west-2:966028770618:layer:certbot-py38:1"
+    us-gov-east-1:
+      python36: "arn:aws-us-gov:lambda:us-gov-east-1:678832456889:layer:certbot-py36:1"
+      python37: "arn:aws-us-gov:lambda:us-gov-east-1:678832456889:layer:certbot-py37:1"
+      python38: "arn:aws-us-gov:lambda:us-gov-east-1:678832456889:layer:certbot-py38:1"
+    us-gov-west-1:
+      python36: "arn:aws-us-gov:lambda:us-gov-west-1:678832456889:layer:certbot-py36:1"
+      python37: "arn:aws-us-gov:lambda:us-gov-west-1:678832456889:layer:certbot-py37:1"
+      python38: "arn:aws-us-gov:lambda:us-gov-west-1:678832456889:layer:certbot-py38:1"
+  CertbotToACMFunctionZIP:
+    ap-east-1:
+      version: "PNFngJTa1v_VJDJgJH9vZQUAL8iczlba"
+    ap-northeast-1:
+      version: "tS09ZzL5A6fTaoIo8Is0R12c8Yd6cjK5"
+    ap-northeast-2:
+      version: "vp5kCoNWgyK08n_duJZME4YeI7NpFwlU"
+    ap-south-1:
+      version: "fEWTYzJ5XisT31pcIMrFG7.azQgccZ_A"
+    ap-southeast-1:
+      version: ".sy3cb2WDQRt.woiyYn6vxCpvGMZNYZr"
+    ap-southeast-2:
+      version: "1.7f2FMXyC0eSPRZbPcyWAK6Ak9yq2p_"
+    ca-central-1:
+      version: "qGpbXLmvvKaV0OR4GO7rU1WTfZNtOPBo"
+    eu-central-1:
+      version: "KYokNoLFVlFO759XYQv_SR0QFwCRoBUL"
+    eu-north-1:
+      version: "Atg1Rd8nYrUxstnWAqge5KeveistLl7X"
+    eu-west-1:
+      version: "e_SzJwbaVBSwerWusvKeGEtQpgmE0rMd"
+    eu-west-2:
+      version: "n9teMZcIkUw4.iSyz.KC5v5dk0Xo5.JX"
+    eu-west-3:
+      version: "3Nceu_F94ajSmZ1.QLj7JxDrntpPgfBi"
+    me-south-1:
+      version: "je3SXXYELLogIdFpZwJxBw2Ls70i.FP_"
+    sa-east-1:
+      version: "nC2vnoj3bx7Bl1DRXtj3keW388SNa7IT"
+    us-east-1:
+      version: "3GXFbNo7SSIu0tfYzdVD00MfG8kKcVGH"
+    us-east-2:
+      version: "2pQ4Oid277C8WYsXkTYSEDBu1bfw4xWw"
+    us-west-1:
+      version: "oSp2Ju4VCktqvWE6.JN7rRB5YQpTe3_e"
+    us-west-2:
+      version: "DMuCFqAsEMyGX4oUxbm.oxiG0pXlcW.B"
+    us-gov-east-1:
+      version: "vwV1e2SU.YJJ8gOAD8Cf2isRVwcGg0EU"
+    us-gov-west-1:
+      version: "zmmOO37dIWtPUFJzNepy1m9oWVY2epmH"
+Resources:
+  CertbotToACMFunctionPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      Description: Allow certbot-to-acm to access ACM.
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - "acm:GetCertificate"
+              - "acm:ImportCertificate"
+              - "acm:ListCertificates"
+            Resource: "*"
+  CertbotToACMFunctionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: "sts:AssumeRole"
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSLambdaExecute"
+        - !Ref CertbotToACMFunctionPolicy
+  CertbotToACMFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        S3Bucket: !Sub "ionosphere-public-${AWS::Region}"
+        S3Key: "certbot-to-acm.zip"
+        S3ObjectVersion: !FindInMap [CertbotToACMFunctionZIP, !Ref "AWS::Region", version]
+      Description: Request a certificate from LetsEncrypt and store it in ACM.
+      Handler: index.lambda_handler
+      Layers:
+        - !FindInMap [CertbotLayer, {"Ref": "AWS::Region"}, python38]
+      MemorySize: 128
+      Role: !GetAtt CertbotToACMFunctionRole.Arn
+      Runtime: python3.8
+      Timeout: 300
+  CertbotToACMFunctionPermission:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Ref CertbotToACMFunction
+      Principal: events.amazonaws.com
+      SourceAccount: !Ref "AWS::AccountId"
+Outputs:
+  CertbotToACMFunctionName:
+    Value: !Ref CertbotToACMFunction
