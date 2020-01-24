@@ -18,6 +18,6 @@ clean:
 deploy: $(patsubst %,deploy-%,$(REGIONS))
 
 deploy-%: $(CERTBOT_ZIP_TARGETS)
-	./deploy.py $(patsubst deploy-%,%,$@) $(PYTHON_VERSIONS)
+	./deploy.py --region $(patsubst deploy-%,%,$@) $(PYTHON_VERSIONS)
 
 .PHONY: all clean deploy $(DEPLOY_TARGETS)
