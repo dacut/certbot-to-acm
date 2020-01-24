@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """\
-Usage: deploy.py [--region <region>] <python-version>...
+Usage: deploy-certbot-layer.py [--region <region>] <python-version>...
 Deploy certbot layers.
 
 Options:
