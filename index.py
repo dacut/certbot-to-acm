@@ -79,6 +79,7 @@ def find_existing_certificate(
             result = acm.get_certificate(CertificateArn=arn)
             if "Certificate" not in result:
                 raise ValueError(f"Invalid certificate ARN: {arn}")
+            return arn
         except ClientError as e:
             raise ValueError(f"Invalid certificate ARN: {arn} ({e})")
 
