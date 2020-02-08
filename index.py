@@ -18,6 +18,8 @@ import certbot.main
 DEFAULT_ENDPOINT = "https://acme-staging-v02.api.letsencrypt.org/directory"
 DEFAULT_RSA_KEY_SIZE = 2048
 DEFAULT_KMS_KEY = "alias/aws/s3"
+DEFAULT_SSM_KMS_KEY = "alias/aws/ssm"
+DEFAULT_SSM_TIER = "Standard"
 VALID_RSA_KEY_SIZES = (2048, 3072, 4096,)
 CERTBOT_TEMP_DIR = "/tmp/certbot"
 CERTBOT_CONFIG_ZIP = "/tmp/certbot-config.zip"
@@ -27,7 +29,11 @@ CERTBOT_LOG_DIR = f"{CERTBOT_TEMP_DIR}/log"
 
 CERT_FILENAME_PATTERN = f"{CERTBOT_CONFIG_DIR}/live/*/cert.pem"
 CHAIN_FILENAME_PATTERN = f"{CERTBOT_CONFIG_DIR}/live/*/chain.pem"
+FULLCHAIN_FILENAME_PATTERN = f"{CERTBOT_CONFIG_DIR}/live/*/fullchain.pem"
 KEY_FILENAME_PATTERN = f"{CERTBOT_CONFIG_DIR}/live/*/privkey.pem"
+
+s3 = boto3.client("s3")
+ssm = boto3.client("ssm")
 
 def get_list_certs_kw(filters: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -119,7 +125,6 @@ def download_certbot_config(config_bucket: str, config_key: str) -> None:
     Download the configuration ZIP file from S3 and extract it to the certbot
     config directory.
     """
-    s3 = boto3.client("s3")
     try:
         s3.download_file(
             Bucket=config_bucket, Key=config_key,
@@ -154,11 +159,26 @@ def create_config_zip() -> Dict[str, bytes]:
                 elif fnmatch(pathname, CHAIN_FILENAME_PATTERN):
                     with open(pathname, "rb") as fd:
                         acm_args["CertificateChain"] = fd.read()
+                elif fnmatch(pathname, FULLCHAIN_FILENAME_PATTERN):
+                    with open(pathname, "rb") as fd:
+                        acm_args["CertificateFullChain"] = fd.read()
                 elif fnmatch(pathname, KEY_FILENAME_PATTERN):
                     with open(pathname, "rb") as fd:
                         acm_args["PrivateKey"] = fd.read()
 
     return acm_args
+
+def get_ssm_parameter(parameter_name: str) -> Optional[str]:
+    """
+    Return the given SSM parameter, or None if it doesn't exist.
+    """
+    try:
+        result = ssm.get_parameter(Name=parameter_name, WithDecryption=True)
+        return result["Parameter"]["Value"]
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ParameterNotFound":
+            return None
+        raise
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -193,7 +213,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         "domains": ["name1.example.com", "name2.example.com", ...],
         "email": "email@example.com",
         "endpoint": "https://acme-staging-v02.api.letsencrypt.org/directory",
-        "rsa-key-size": 2048
+        "rsa-key-size": 2048,
+        "ssm-parameter-prefix": "/path/parameter",
+        "ssm-kms-key": "alias/key-name"
+
     }
 
     *   acm-certificate-arn is optional. If set, any new certificates are
@@ -208,6 +231,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         config archive. If omitted, it defaults to "alias/aws/s3".
     *   endpoint is optional and defaults to the LetsEncrypt staging server.
     *   rsa-key-size is optional and defaults to 2048.
+    *   ssm-parameter-prefix is optional. If set, the resulting certificate,
+        chain, and key files are save to the SSM parameter store under the
+        given prefix.
+    *   ssm-kms-key is optional. If ssm-parameter-prefix is set,
+        this specifies the KMS alias or ARN used to encrypt the TLS key.
+        If omitted, it defaults to "alias/aws/ssm".
+    *   ssm-tier is optional and defaults to "Standard". Use "Advanced" to
+        enable the use of advanced SSM features.
     """
     acm_certificate_arn = event.get("acm-certificate-arn")
     acm_certificate_filters = event.get("acm-certificate-filters", {})
@@ -218,6 +249,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     email = event.get("email")
     endpoint = event.get("endpoint", DEFAULT_ENDPOINT)
     rsa_key_size = event.get("rsa-key-size", DEFAULT_RSA_KEY_SIZE)
+    ssm_parameter_prefix = event.get("ssm-parameter-prefix")
+    ssm_kms_key = event.get("ssm-kms-key", DEFAULT_SSM_KMS_KEY)
+    ssm_tier = event.get("ssm-tier", DEFAULT_SSM_TIER)
 
     errors = []
     if not agree_tos:
@@ -291,27 +325,66 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         raise RuntimeError(
             f"certbot command exited with exit code {result}")
 
-    acm_args = create_config_zip()
+    cert_args = create_config_zip()
 
-    if "Certificate" not in acm_args:
+    if "Certificate" not in cert_args:
         raise ValueError("Did not find certificate")
 
-    if "CertificateChain" not in acm_args:
+    if "CertificateChain" not in cert_args:
         raise ValueError("Did not find certificate chain")
 
-    if "PrivateKey" not in acm_args:
+    if "PrivateKey" not in cert_args:
         raise ValueError("Did not find private key")
 
     with open(CERTBOT_CONFIG_ZIP, "rb") as fd:
-        s3 = boto3.client("s3")
         s3.put_object(
             ACL='private', Body=fd, Bucket=config_bucket, Key=config_key,
             ServerSideEncryption="aws:kms", SSEKMSKeyId=config_store_kms_key)
     unlink(CERTBOT_CONFIG_ZIP)
 
+    acm_args = {}
+    acm_args.update(cert_args)
+    del acm_args["CertificateFullChain"]
     if acm_certificate_arn:
         acm_args["CertificateArn"] = acm_certificate_arn
-
     acm.import_certificate(**acm_args)
+
+    if ssm_parameter_prefix:
+        if not ssm_parameter_prefix.startswith("/"):
+            ssm_parameter_prefix = "/" + ssm_parameter_prefix
+        if not ssm_parameter_prefix.endswith("/"):
+            ssm_parameter_prefix = ssm_parameter_prefix + "/"
+        
+        existing_cert = get_ssm_parameter(f"{ssm_parameter_prefix}cert")
+        existing_chain = get_ssm_parameter(f"{ssm_parameter_prefix}chain")
+        existing_fullchain = get_ssm_parameter(f"{ssm_parameter_prefix}fullchain")
+        existing_key = get_ssm_parameter(f"{ssm_parameter_prefix}key")
+
+        cert = cert_args["Certificate"].decode("utf-8")
+        chain = cert_args["CertificateChain"].decode("utf-8")
+        fullchain = cert_args["CertificateFullChain"].decode("utf-8")
+        key = cert_args["PrivateKey"].decode("utf-8")
+
+        if existing_cert != cert:
+            ssm.put_parameter(
+                Name=f"{ssm_parameter_prefix}cert",
+                Description=f"TLS certificate for {' '.join(domains)}",
+                Overwrite=True, Value=cert, Type="String", Tier=ssm_tier)
+        if existing_chain != chain:
+            ssm.put_parameter(
+                Name=f"{ssm_parameter_prefix}chain",
+                Description=f"TLS intermediate for {' '.join(domains)}",
+                Overwrite=True, Value=chain, Type="String", Tier=ssm_tier)
+        if existing_fullchain != fullchain:
+            ssm.put_parameter(
+                Name=f"{ssm_parameter_prefix}fullchain",
+                Description=f"TLS fullchain for {' '.join(domains)}",
+                Overwrite=True, Value=fullchain, Type="String", Tier=ssm_tier)
+        if existing_key != key:
+            ssm.put_parameter(
+                Name=f"{ssm_parameter_prefix}privkey",
+                Description=f"TLS key for {' '.join(domains)}",
+                KeyId=ssm_kms_key, Overwrite=True, Value=key,
+                Type="SecureString", Tier=ssm_tier)
 
     return {}

@@ -65,14 +65,6 @@ Mappings:
       python36: "arn:aws:lambda:us-east-2:966028770618:layer:certbot-py36:1"
       python37: "arn:aws:lambda:us-east-2:966028770618:layer:certbot-py37:1"
       python38: "arn:aws:lambda:us-east-2:966028770618:layer:certbot-py38:1"
-    us-west-1:
-      python36: "arn:aws:lambda:us-west-1:966028770618:layer:certbot-py36:1"
-      python37: "arn:aws:lambda:us-west-1:966028770618:layer:certbot-py37:1"
-      python38: "arn:aws:lambda:us-west-1:966028770618:layer:certbot-py38:1"
-    us-west-2:
-      python36: "arn:aws:lambda:us-west-2:966028770618:layer:certbot-py36:1"
-      python37: "arn:aws:lambda:us-west-2:966028770618:layer:certbot-py37:1"
-      python38: "arn:aws:lambda:us-west-2:966028770618:layer:certbot-py38:1"
     us-gov-east-1:
       python36: "arn:aws-us-gov:lambda:us-gov-east-1:678832456889:layer:certbot-py36:1"
       python37: "arn:aws-us-gov:lambda:us-gov-east-1:678832456889:layer:certbot-py37:1"
@@ -81,47 +73,55 @@ Mappings:
       python36: "arn:aws-us-gov:lambda:us-gov-west-1:678832456889:layer:certbot-py36:1"
       python37: "arn:aws-us-gov:lambda:us-gov-west-1:678832456889:layer:certbot-py37:1"
       python38: "arn:aws-us-gov:lambda:us-gov-west-1:678832456889:layer:certbot-py38:1"
+    us-west-1:
+      python36: "arn:aws:lambda:us-west-1:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:us-west-1:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:us-west-1:966028770618:layer:certbot-py38:1"
+    us-west-2:
+      python36: "arn:aws:lambda:us-west-2:966028770618:layer:certbot-py36:1"
+      python37: "arn:aws:lambda:us-west-2:966028770618:layer:certbot-py37:1"
+      python38: "arn:aws:lambda:us-west-2:966028770618:layer:certbot-py38:1"
   CertbotToACMFunctionZIP:
     ap-east-1:
-      version: "MZsbCcXEZmeKc_UDrr56iHYAt.q.FNoY"
+      version: "wPOYJGL_lZ8NqBwRmoZRGAi2IUYQq3jT"
     ap-northeast-1:
-      version: "KUVpb3z4p685NogqGshYVgnAsrBSwCSY"
+      version: "AoV8zDi2T2txDqdepV8VY4JrvlHjp9qg"
     ap-northeast-2:
-      version: "e6CEwA19.Gmqcf.iEbqv0zdR3JpfkLHx"
+      version: "mvoZAyLYOW86UfuPTbruJkZ9RV_HTSul"
     ap-south-1:
-      version: "s6xVpxHFK_.rqQgVGXQm4GSz9qT0xvvf"
+      version: "9Cpu8hpsZqb1TDPIrMO31oLtynn5uNif"
     ap-southeast-1:
-      version: "XMf_z7c4enAfURuYfw9I5idRVwQaW5HS"
+      version: "z2oUQYEITm3ptW6OsGO__zfaHQITM9b5"
     ap-southeast-2:
-      version: "ogiSf1fFMdY4a4x23Y.XOwDOjlROnp7W"
+      version: "Or2uTXjxzsDo68DRDYA8FOvoyWTOHmFJ"
     ca-central-1:
-      version: "r3_2WcyZReJZDNzR5KyRHrGvoL98.kZ9"
+      version: "pv_t8fAm1AavsnYnAOk.WMqMF84rFJ5Z"
     eu-central-1:
-      version: "HvUVR_kpBdim8ljPC9lQGxlxE4ZvNiMg"
+      version: "TKh_0ToTmEmA2oTyyASmHDs4cjAEB3qN"
     eu-north-1:
-      version: "V.OXo.ZUj9IzOdj18OiHDN0fx.YbBlkw"
+      version: "sHTKw3p69v.p400Emk8jL3yIP2ABm.Gq"
     eu-west-1:
-      version: "ZzC3vYuUYyiS1pHNiL.5ue1NJvVhynSn"
+      version: "S235PXtZUfcjmF66zPCTtXdAoF4kH4M6"
     eu-west-2:
-      version: "KyuMFitdMb01O1OBDReGAMPCKEldrNBe"
+      version: "v32Oh4KJvQyd3UrVtEZ7dJ5wHce10jNy"
     eu-west-3:
-      version: "_2u89TNr4EtPsjcB4x2St5cp08s82OhZ"
+      version: "seqnOcQ63bGTuWIYKmMyd_su8TDLlpk3"
     me-south-1:
-      version: "sKUNDWickKZcP40s9BI_O9sWmEySsUPG"
+      version: "JuIe.zzanHRJ9DRBibZFgVIV.ryO4Kn6"
     sa-east-1:
-      version: "vdVmjfTODEjKKHou7lt7J908FQQEzzrW"
+      version: "zSndY7Q6_tMXzVw75zXCSSPBXFIyGHnU"
     us-east-1:
-      version: "D8fQxcqOoSKERkZ.eW6EauluhoWF16Sm"
+      version: "3MSd.TWw3naZBcvQKh71MJiSx1FrhdYU"
     us-east-2:
-      version: ".3bkAChOZdlIcS5f0lQAwqa680hPHnml"
+      version: "oKWOTDxYhGxk2V1VNRCbCJEwliOs68bT"
     us-gov-east-1:
-      version: "JwkjmixsERNugXUwBlmUSa_e1n68mg6J"
+      version: "uoCNlDu5dGwqXauzfZW1xbNEEjblaNE3"
     us-gov-west-1:
-      version: "sKI4VctUnOohUVjnQ5KriaJkfKAslCq."
+      version: "NNzgZJBT9VfqLmZVAElhf0uAKjTlI4St"
     us-west-1:
-      version: "sF5ckTFyv2384Yye3XhJOlRyAZiM0TFm"
+      version: "dAxDtS2QyrgfPyhwINzHo7Wwx2eF9Bvr"
     us-west-2:
-      version: "wwP8UyXoDaEjV7OEbfNQJ72ay.MjlLln"
+      version: "mQv54X_jqeapP6fXvqtHFsNHq3ZBAB2q"
 Resources:
   CertbotToACMFunctionPolicy:
     Type: "AWS::IAM::ManagedPolicy"
@@ -144,6 +144,10 @@ Resources:
               - "s3:GetObjectAcl"
               - "s3:PutObjectAcl"
               - "s3:ListBucket"
+              - "ssm:GetParameter"
+              - "ssm:GetParameters"
+              - "ssm:GetParametersByPath"
+              - "ssm:PutParameter"
             Resource: "*"
   CertbotToACMFunctionRole:
     Type: "AWS::IAM::Role"
@@ -170,7 +174,7 @@ Resources:
       Handler: index.lambda_handler
       Layers:
         - !FindInMap [CertbotLayer, {"Ref": "AWS::Region"}, python38]
-      MemorySize: 128
+      MemorySize: 256
       Role: !GetAtt CertbotToACMFunctionRole.Arn
       Runtime: python3.8
       Timeout: 300

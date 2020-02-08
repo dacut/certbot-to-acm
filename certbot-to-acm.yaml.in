@@ -1,0 +1,190 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Mappings:
+  CertbotLayer:
+    ap-east-1:
+      python36: "@@{Versions.CertbotLayer.ap-east-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.ap-east-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.ap-east-1.python38}@@"
+    ap-northeast-1:
+      python36: "@@{Versions.CertbotLayer.ap-northeast-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.ap-northeast-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.ap-northeast-1.python38}@@"
+    ap-northeast-2:
+      python36: "@@{Versions.CertbotLayer.ap-northeast-2.python36}@@"
+      python37: "@@{Versions.CertbotLayer.ap-northeast-2.python37}@@"
+      python38: "@@{Versions.CertbotLayer.ap-northeast-2.python38}@@"
+    ap-south-1:
+      python36: "@@{Versions.CertbotLayer.ap-south-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.ap-south-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.ap-south-1.python38}@@"
+    ap-southeast-1:
+      python36: "@@{Versions.CertbotLayer.ap-southeast-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.ap-southeast-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.ap-southeast-1.python38}@@"
+    ap-southeast-2:
+      python36: "@@{Versions.CertbotLayer.ap-southeast-2.python36}@@"
+      python37: "@@{Versions.CertbotLayer.ap-southeast-2.python37}@@"
+      python38: "@@{Versions.CertbotLayer.ap-southeast-2.python38}@@"
+    ca-central-1:
+      python36: "@@{Versions.CertbotLayer.ca-central-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.ca-central-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.ca-central-1.python38}@@"
+    eu-central-1:
+      python36: "@@{Versions.CertbotLayer.eu-central-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.eu-central-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.eu-central-1.python38}@@"
+    eu-north-1:
+      python36: "@@{Versions.CertbotLayer.eu-north-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.eu-north-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.eu-north-1.python38}@@"
+    eu-west-1:
+      python36: "@@{Versions.CertbotLayer.eu-west-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.eu-west-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.eu-west-1.python38}@@"
+    eu-west-2:
+      python36: "@@{Versions.CertbotLayer.eu-west-2.python36}@@"
+      python37: "@@{Versions.CertbotLayer.eu-west-2.python37}@@"
+      python38: "@@{Versions.CertbotLayer.eu-west-2.python38}@@"
+    eu-west-3:
+      python36: "@@{Versions.CertbotLayer.eu-west-3.python36}@@"
+      python37: "@@{Versions.CertbotLayer.eu-west-3.python37}@@"
+      python38: "@@{Versions.CertbotLayer.eu-west-3.python38}@@"
+    me-south-1:
+      python36: "@@{Versions.CertbotLayer.me-south-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.me-south-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.me-south-1.python38}@@"
+    sa-east-1:
+      python36: "@@{Versions.CertbotLayer.sa-east-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.sa-east-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.sa-east-1.python38}@@"
+    us-east-1:
+      python36: "@@{Versions.CertbotLayer.us-east-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.us-east-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.us-east-1.python38}@@"
+    us-east-2:
+      python36: "@@{Versions.CertbotLayer.us-east-2.python36}@@"
+      python37: "@@{Versions.CertbotLayer.us-east-2.python37}@@"
+      python38: "@@{Versions.CertbotLayer.us-east-2.python38}@@"
+    us-gov-east-1:
+      python36: "@@{Versions.CertbotLayer.us-gov-east-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.us-gov-east-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.us-gov-east-1.python38}@@"
+    us-gov-west-1:
+      python36: "@@{Versions.CertbotLayer.us-gov-west-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.us-gov-west-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.us-gov-west-1.python38}@@"
+    us-west-1:
+      python36: "@@{Versions.CertbotLayer.us-west-1.python36}@@"
+      python37: "@@{Versions.CertbotLayer.us-west-1.python37}@@"
+      python38: "@@{Versions.CertbotLayer.us-west-1.python38}@@"
+    us-west-2:
+      python36: "@@{Versions.CertbotLayer.us-west-2.python36}@@"
+      python37: "@@{Versions.CertbotLayer.us-west-2.python37}@@"
+      python38: "@@{Versions.CertbotLayer.us-west-2.python38}@@"
+  CertbotToACMFunctionZIP:
+    ap-east-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.ap-east-1.version}@@"
+    ap-northeast-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.ap-northeast-1.version}@@"
+    ap-northeast-2:
+      version: "@@{Versions.CertbotToACMFunctionZIP.ap-northeast-2.version}@@"
+    ap-south-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.ap-south-1.version}@@"
+    ap-southeast-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.ap-southeast-1.version}@@"
+    ap-southeast-2:
+      version: "@@{Versions.CertbotToACMFunctionZIP.ap-southeast-2.version}@@"
+    ca-central-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.ca-central-1.version}@@"
+    eu-central-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.eu-central-1.version}@@"
+    eu-north-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.eu-north-1.version}@@"
+    eu-west-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.eu-west-1.version}@@"
+    eu-west-2:
+      version: "@@{Versions.CertbotToACMFunctionZIP.eu-west-2.version}@@"
+    eu-west-3:
+      version: "@@{Versions.CertbotToACMFunctionZIP.eu-west-3.version}@@"
+    me-south-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.me-south-1.version}@@"
+    sa-east-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.sa-east-1.version}@@"
+    us-east-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.us-east-1.version}@@"
+    us-east-2:
+      version: "@@{Versions.CertbotToACMFunctionZIP.us-east-2.version}@@"
+    us-gov-east-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.us-gov-east-1.version}@@"
+    us-gov-west-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.us-gov-west-1.version}@@"
+    us-west-1:
+      version: "@@{Versions.CertbotToACMFunctionZIP.us-west-1.version}@@"
+    us-west-2:
+      version: "@@{Versions.CertbotToACMFunctionZIP.us-west-2.version}@@"
+Resources:
+  CertbotToACMFunctionPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      Description: Allow certbot-to-acm to access ACM.
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - "acm:GetCertificate"
+              - "acm:ImportCertificate"
+              - "acm:ListCertificates"
+              - "route53:ListHostedZones"
+              - "route53:ListHostedZonesByName"
+              - "route53:GetHostedZone"
+              - "route53:GetChange"
+              - "route53:ChangeResourceRecordSets"
+              - "route53:ListResourceRecordSets"
+              - "s3:GetObjectAcl"
+              - "s3:PutObjectAcl"
+              - "s3:ListBucket"
+              - "ssm:GetParameter"
+              - "ssm:GetParameters"
+              - "ssm:GetParametersByPath"
+              - "ssm:PutParameter"
+            Resource: "*"
+  CertbotToACMFunctionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: "sts:AssumeRole"
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSLambdaExecute"
+        - !Ref CertbotToACMFunctionPolicy
+  CertbotToACMFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        S3Bucket: !Sub "ionosphere-public-${AWS::Region}"
+        S3Key: "certbot-to-acm.zip"
+        S3ObjectVersion: !FindInMap [CertbotToACMFunctionZIP, !Ref "AWS::Region", version]
+      Description: Request a certificate from LetsEncrypt and store it in ACM.
+      Handler: index.lambda_handler
+      Layers:
+        - !FindInMap [CertbotLayer, {"Ref": "AWS::Region"}, python38]
+      MemorySize: 256
+      Role: !GetAtt CertbotToACMFunctionRole.Arn
+      Runtime: python3.8
+      Timeout: 300
+  CertbotToACMFunctionPermission:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Ref CertbotToACMFunction
+      Principal: events.amazonaws.com
+      SourceAccount: !Ref "AWS::AccountId"
+Outputs:
+  CertbotToACMFunctionName:
+    Value: !Ref CertbotToACMFunction

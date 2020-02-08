@@ -1,0 +1,168 @@
+{
+    "Versions": {
+        "CertbotLayer": {
+            "ap-east-1": {
+                "python36": "arn:aws:lambda:ap-east-1:966028770618:layer:certbot-py36:2",
+                "python37": "arn:aws:lambda:ap-east-1:966028770618:layer:certbot-py37:2",
+                "python38": "arn:aws:lambda:ap-east-1:966028770618:layer:certbot-py38:1"
+            },
+            "ap-northeast-1": {
+                "python36": "arn:aws:lambda:ap-northeast-1:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:ap-northeast-1:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:ap-northeast-1:966028770618:layer:certbot-py38:1"
+            },
+            "ap-northeast-2": {
+                "python36": "arn:aws:lambda:ap-northeast-2:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:ap-northeast-2:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:ap-northeast-2:966028770618:layer:certbot-py38:1"
+            },
+            "ap-south-1": {
+                "python36": "arn:aws:lambda:ap-south-1:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:ap-south-1:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:ap-south-1:966028770618:layer:certbot-py38:1"
+            },
+            "ap-southeast-1": {
+                "python36": "arn:aws:lambda:ap-southeast-1:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:ap-southeast-1:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:ap-southeast-1:966028770618:layer:certbot-py38:1"
+            },
+            "ap-southeast-2": {
+                "python36": "arn:aws:lambda:ap-southeast-2:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:ap-southeast-2:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:ap-southeast-2:966028770618:layer:certbot-py38:1"
+            },
+            "ca-central-1": {
+                "python36": "arn:aws:lambda:ca-central-1:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:ca-central-1:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:ca-central-1:966028770618:layer:certbot-py38:1"
+            },
+            "eu-central-1": {
+                "python36": "arn:aws:lambda:eu-central-1:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:eu-central-1:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:eu-central-1:966028770618:layer:certbot-py38:1"
+            },
+            "eu-north-1": {
+                "python36": "arn:aws:lambda:eu-north-1:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:eu-north-1:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:eu-north-1:966028770618:layer:certbot-py38:1"
+            },
+            "eu-west-1": {
+                "python36": "arn:aws:lambda:eu-west-1:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:eu-west-1:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:eu-west-1:966028770618:layer:certbot-py38:1"
+            },
+            "eu-west-2": {
+                "python36": "arn:aws:lambda:eu-west-2:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:eu-west-2:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:eu-west-2:966028770618:layer:certbot-py38:1"
+            },
+            "eu-west-3": {
+                "python36": "arn:aws:lambda:eu-west-3:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:eu-west-3:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:eu-west-3:966028770618:layer:certbot-py38:1"
+            },
+            "me-south-1": {
+                "python36": "arn:aws:lambda:me-south-1:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:me-south-1:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:me-south-1:966028770618:layer:certbot-py38:1"
+            },
+            "sa-east-1": {
+                "python36": "arn:aws:lambda:sa-east-1:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:sa-east-1:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:sa-east-1:966028770618:layer:certbot-py38:1"
+            },
+            "us-east-1": {
+                "python36": "arn:aws:lambda:us-east-1:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:us-east-1:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:us-east-1:966028770618:layer:certbot-py38:1"
+            },
+            "us-east-2": {
+                "python36": "arn:aws:lambda:us-east-2:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:us-east-2:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:us-east-2:966028770618:layer:certbot-py38:1"
+            },
+            "us-gov-east-1": {
+                "python36": "arn:aws-us-gov:lambda:us-gov-east-1:678832456889:layer:certbot-py36:1",
+                "python37": "arn:aws-us-gov:lambda:us-gov-east-1:678832456889:layer:certbot-py37:1",
+                "python38": "arn:aws-us-gov:lambda:us-gov-east-1:678832456889:layer:certbot-py38:1"
+            },
+            "us-gov-west-1": {
+                "python36": "arn:aws-us-gov:lambda:us-gov-west-1:678832456889:layer:certbot-py36:1",
+                "python37": "arn:aws-us-gov:lambda:us-gov-west-1:678832456889:layer:certbot-py37:1",
+                "python38": "arn:aws-us-gov:lambda:us-gov-west-1:678832456889:layer:certbot-py38:1"
+            },
+            "us-west-1": {
+                "python36": "arn:aws:lambda:us-west-1:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:us-west-1:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:us-west-1:966028770618:layer:certbot-py38:1"
+            },
+            "us-west-2": {
+                "python36": "arn:aws:lambda:us-west-2:966028770618:layer:certbot-py36:1",
+                "python37": "arn:aws:lambda:us-west-2:966028770618:layer:certbot-py37:1",
+                "python38": "arn:aws:lambda:us-west-2:966028770618:layer:certbot-py38:1"
+            }
+        },
+        "CertbotToACMFunctionZIP": {
+            "ap-east-1": {
+                "version": "wPOYJGL_lZ8NqBwRmoZRGAi2IUYQq3jT"
+            },
+            "ap-northeast-1": {
+                "version": "AoV8zDi2T2txDqdepV8VY4JrvlHjp9qg"
+            },
+            "ap-northeast-2": {
+                "version": "mvoZAyLYOW86UfuPTbruJkZ9RV_HTSul"
+            },
+            "ap-south-1": {
+                "version": "9Cpu8hpsZqb1TDPIrMO31oLtynn5uNif"
+            },
+            "ap-southeast-1": {
+                "version": "z2oUQYEITm3ptW6OsGO__zfaHQITM9b5"
+            },
+            "ap-southeast-2": {
+                "version": "Or2uTXjxzsDo68DRDYA8FOvoyWTOHmFJ"
+            },
+            "ca-central-1": {
+                "version": "pv_t8fAm1AavsnYnAOk.WMqMF84rFJ5Z"
+            },
+            "eu-central-1": {
+                "version": "TKh_0ToTmEmA2oTyyASmHDs4cjAEB3qN"
+            },
+            "eu-north-1": {
+                "version": "sHTKw3p69v.p400Emk8jL3yIP2ABm.Gq"
+            },
+            "eu-west-1": {
+                "version": "S235PXtZUfcjmF66zPCTtXdAoF4kH4M6"
+            },
+            "eu-west-2": {
+                "version": "v32Oh4KJvQyd3UrVtEZ7dJ5wHce10jNy"
+            },
+            "eu-west-3": {
+                "version": "seqnOcQ63bGTuWIYKmMyd_su8TDLlpk3"
+            },
+            "me-south-1": {
+                "version": "JuIe.zzanHRJ9DRBibZFgVIV.ryO4Kn6"
+            },
+            "sa-east-1": {
+                "version": "zSndY7Q6_tMXzVw75zXCSSPBXFIyGHnU"
+            },
+            "us-east-1": {
+                "version": "3MSd.TWw3naZBcvQKh71MJiSx1FrhdYU"
+            },
+            "us-east-2": {
+                "version": "oKWOTDxYhGxk2V1VNRCbCJEwliOs68bT"
+            },
+            "us-gov-east-1": {
+                "version": "uoCNlDu5dGwqXauzfZW1xbNEEjblaNE3"
+            },
+            "us-gov-west-1": {
+                "version": "NNzgZJBT9VfqLmZVAElhf0uAKjTlI4St"
+            },
+            "us-west-1": {
+                "version": "dAxDtS2QyrgfPyhwINzHo7Wwx2eF9Bvr"
+            },
+            "us-west-2": {
+                "version": "mQv54X_jqeapP6fXvqtHFsNHq3ZBAB2q"
+            }
+        }
+    }
+}

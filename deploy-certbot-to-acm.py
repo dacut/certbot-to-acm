@@ -10,38 +10,41 @@ Options:
     -r <region> | --region <region>
         Use the specified AWS region. This must be specified.
 """
+from concurrent.futures import ThreadPoolExecutor
 from getopt import getopt, GetoptError
 from sys import argv, exit as sys_exit, stderr, stdout
 from boto3.session import Session
 
-def main(args):
-    region = None
-    try:
-        opts, args = getopt(args, "hr:", ["help", "region="])
-
-        for opt, val in opts:
-            if opt in ("-h", "--help",):
-                usage(stdout)
-                return 0
-            if opt in ("-r", "--region",):
-                region = val
-    except GetoptError as e:
-        print(e, file=stderr)
-        usage()
-        return 2
-
-    if region is None:
-        print("--region must be specified", file=stderr)
-        usage()
-        return 2
-
-    b3 = Session(region_name=region)
+def deploy(region, profile):
+    b3 = Session(region_name=region, profile_name=profile)
     s3 = b3.client("s3")
     s3_bucket = f"ionosphere-public-{region}"
     filename = f"certbot-to-acm.zip"
     with open(filename, "rb") as fd:
         s3_result = s3.put_object(
             ACL="public-read", Body=fd, Bucket=s3_bucket, Key=filename)
+
+
+def main(args):
+    with open(".profiles.txt", "r") as fd:
+        profiles = fd.read().strip().split("\n")
+
+    region_profiles = []
+
+    for profile in profiles:
+        ec2 = Session(profile_name=profile).client("ec2")
+        regions = [r["RegionName"] for r in ec2.describe_regions()["Regions"]]
+        for region in regions:
+            region_profiles.append((region, profile))
+
+    region_profiles.sort()
+
+    with ThreadPoolExecutor(max_workers=2 * len(region_profiles)) as tpe:
+        futures = [tpe.submit(deploy, region, profile) for region, profile in region_profiles]
+
+    for future in futures:
+        future.result()
+
     return 0
 
 if __name__ == "__main__":

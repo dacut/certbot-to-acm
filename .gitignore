@@ -131,3 +131,6 @@ dmypy.json
 # Certbot artifacts
 certbot-layer-*.zip
 certbot-to-acm.zip
+
+.profiles.txt
+
