@@ -1,0 +1,4 @@
+black
+flake8
+mypy
+boto3-stubs[acm,ssm]

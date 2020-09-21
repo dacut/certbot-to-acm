@@ -3,42 +3,68 @@ Lambda entrypoint for handling Certbot renewals.
 """
 # pylint: disable=invalid-name
 from fnmatch import fnmatch
-from os import makedirs, unlink, walk
-from os.path import exists
-from re import fullmatch
+from hashlib import sha256
+from logging import getLogger
+from os import chmod, scandir, lstat, makedirs, symlink, unlink, walk
+from os.path import basename, isdir
+from re import compile as re_compile, fullmatch
 from shutil import rmtree
+from stat import S_ISLNK, S_ISREG
 from sys import stderr
-from typing import Any, Dict, List, Optional
+from tempfile import TemporaryFile, TemporaryDirectory
+from typing import Any, Dict, NamedTuple, Optional, Set
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from botocore.exceptions import ClientError
 import boto3
 import certbot.main
 
-DEFAULT_ENDPOINT = "https://acme-staging-v02.api.letsencrypt.org/directory"
+
+class CertbotCertificate(NamedTuple):
+    certificate: bytes
+    chain: bytes
+    full_chain: bytes
+    private_key: bytes
+
+
+STAGING_ENDPOINT = "https://acme-staging-v02.api.letsencrypt.org/directory"
+PRODUCTION_ENDPOINT = "https://acme-v02.api.letsencrypt.org/directory"
+DEFAULT_ENDPOINT = STAGING_ENDPOINT
 DEFAULT_RSA_KEY_SIZE = 2048
 DEFAULT_KMS_KEY = "alias/aws/s3"
 DEFAULT_SSM_KMS_KEY = "alias/aws/ssm"
 DEFAULT_SSM_TIER = "Standard"
-VALID_RSA_KEY_SIZES = (2048, 3072, 4096,)
-CERTBOT_TEMP_DIR = "/tmp/certbot"
-CERTBOT_CONFIG_ZIP = "/tmp/certbot-config.zip"
-CERTBOT_CONFIG_DIR = f"{CERTBOT_TEMP_DIR}/config"
-CERTBOT_WORK_DIR = f"{CERTBOT_TEMP_DIR}/work"
-CERTBOT_LOG_DIR = f"{CERTBOT_TEMP_DIR}/log"
+VALID_RSA_KEY_SIZES = (2048, 3072, 4096)
 
-CERT_FILENAME_PATTERN = f"{CERTBOT_CONFIG_DIR}/live/*/cert.pem"
-CHAIN_FILENAME_PATTERN = f"{CERTBOT_CONFIG_DIR}/live/*/chain.pem"
-FULLCHAIN_FILENAME_PATTERN = f"{CERTBOT_CONFIG_DIR}/live/*/fullchain.pem"
-KEY_FILENAME_PATTERN = f"{CERTBOT_CONFIG_DIR}/live/*/privkey.pem"
+CERT_FILENAME_PATTERN = "live/*/cert.pem"
+CHAIN_FILENAME_PATTERN = "live/*/chain.pem"
+FULLCHAIN_FILENAME_PATTERN = "live/*/fullchain.pem"
+KEY_FILENAME_PATTERN = "live/*/privkey.pem"
+
+# Regular expression for Certbot directories that are valid
+VALID_DOMAIN_DIR_MATCHER = re_compile(
+    r"(?P<domain>(?:[0-9a-z][-0-9a-z]*[0-9a-z]|[0-9a-z])(?:\.(?:[0-9a-z][-0-9a-z]*[0-9a-z]|[0-9a-z]))*)"
+)
+
+# Regular expression for Certbot directories that were created because symbolic links/permissions were an issue
+MOVED_DOMAIN_DIR_MATCHER = re_compile(
+    r"(?P<domain>(?:[0-9a-z][-0-9a-z]*[0-9a-z]|[0-9a-z])(?:\.(?:[0-9a-z][-0-9a-z]*[0-9a-z]|[0-9a-z]))*)-[0-9]{4}"
+)
+
+# Archived filenames
+ARCHIVED_FILE_MATCHER = re_compile(r"(?P<filetype>cert|chain|fullchain|privkey)(?P<version>[0-9]+)\.pem")
+
+# All filetypes that Certbot produces
+ALL_FILETYPES = ("cert", "chain", "fullchain", "privkey")
 
 s3 = boto3.client("s3")
 ssm = boto3.client("ssm")
+log = getLogger()
+
 
 def get_list_certs_kw(filters: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Return the keyword arguments to use for list_certificates given the
-    list of filters.
+    Return the keyword arguments to use for list_certificates given the list of filters.
     """
     acm_kw = {}
     includes = {}
@@ -72,11 +98,10 @@ def get_list_certs_kw(filters: Dict[str, Any]) -> Dict[str, Any]:
 
     return acm_kw
 
-def find_existing_certificate(
-        arn: Optional[str], filters: Dict[str, Any]) -> Optional[str]:
+
+def find_existing_certificate(arn: Optional[str], filters: Dict[str, Any]) -> Optional[str]:
     """
-    Search ACM for an existing certificate matching the specified ARN or
-    the list of filters.
+    Search ACM for an existing certificate matching the specified ARN or the list of filters.
     """
     acm = boto3.client("acm")
 
@@ -94,11 +119,11 @@ def find_existing_certificate(
 
     while True:
         print(f"Calling list_certificates with kw={acm_kw}")
-        result = acm.list_certificates(**acm_kw)
-        for cert_summary in result.get("CertificateSummaryList", []):
+        list_result = acm.list_certificates(**acm_kw)
+        for cert_summary in list_result.get("CertificateSummaryList", []):
             cert_summaries.append(cert_summary)
 
-        next_token = result.get("NextToken")
+        next_token = list_result.get("NextToken")
         if not next_token:
             break
 
@@ -107,8 +132,7 @@ def find_existing_certificate(
     domain_name = filters.get("domain")
     if domain_name:
         # Filter out any certificates whose domain name doesn't match
-        cert_summaries = [
-            cs for cs in cert_summaries if cs.get("DomainName") == domain_name]
+        cert_summaries = [cs for cs in cert_summaries if cs.get("DomainName") == domain_name]
 
     if len(cert_summaries) == 0:
         return None
@@ -116,57 +140,271 @@ def find_existing_certificate(
     if len(cert_summaries) == 1:
         return cert_summaries[0]["CertificateArn"]
 
-    raise ValueError(
-        "Multiple certificates found: " +
-        " ".join([cs["CertificateArn"] for cs in cert_summaries]))
+    raise ValueError("Multiple certificates found: " + " ".join([cs["CertificateArn"] for cs in cert_summaries]))
 
-def download_certbot_config(config_bucket: str, config_key: str) -> None:
+
+def download_certbot_config(config_bucket: str, config_key: str, certbot_config_dir: str, certbot_work_dir: str) -> None:
     """
-    Download the configuration ZIP file from S3 and extract it to the certbot
-    config directory.
+    Download the configuration ZIP file from S3 and extract it to the certbot config directory.
     """
-    try:
-        s3.download_file(
-            Bucket=config_bucket, Key=config_key,
-            Filename=CERTBOT_CONFIG_ZIP)
-        with ZipFile(CERTBOT_CONFIG_ZIP, "r") as z:
-            z.extractall("/tmp/certbot/config")
-        unlink(CERTBOT_CONFIG_ZIP)
-    except ClientError as e:
-        if e.response.get("Error", {}).get("Message") == "Not Found":
+    with TemporaryFile(prefix="config", suffix="zip", dir=certbot_work_dir) as fd:
+        try:
+            result = s3.get_object(Bucket=config_bucket, Key=config_key)
+        except ClientError as e:
+            if e.response.get("Error", {}).get("Message") == "Not Found":
+                return
+            raise
+
+        while True:
+            chunk = result.body.read(65536)
+            if not chunk:
+                break
+
+            fd.write(chunk)
+
+        fd.seek(0)
+
+        with ZipFile(fd, "r") as z:
+            z.extractall(certbot_config_dir)
+            fixup_config_dir(certbot_config_dir)
+
+
+def fixup_config_dir(config_root: str) -> None:
+    """
+    Fix permissions and symbolic links in the config directory. This information is usually lost when creating the ZIP.
+    """
+    archive_dir = f"{config_root}/archive"
+    live_dir = f"{config_root}/live"
+    if not isdir(archive_dir):
+        log.error("Archive directory %s is not present", archive_dir)
+
+    if not isdir(live_dir):
+        log.error("Live directory %s is not present", live_dir)
+        return
+
+    # Remove -#### directories from live and archive and get a list of valid domain directories
+    valid_archive_domains = remove_moved_domain_dirs(archive_dir)
+    valid_live_domains = remove_moved_domain_dirs(live_dir)
+
+    log.debug("valid_archive_domains: %s", " ".join(valid_archive_domains))
+    log.debug("valid_live_domains: %s", " ".join(valid_live_domains))
+
+    # This is a map in the form:
+    # {
+    #      "domain.name": {
+    #           0: {                            # version of files
+    #                "chain": b'sha256hash',    # filetype -> SHA256 digest
+    #           },
+    #           1: { ... }
+    #      }
+    # }
+    archive_hashes: Dict[str, Dict[int, Dict[str, bytes]]] = {}
+
+    # Fix permissions in each archive directory
+    for domain in valid_archive_domains:
+        domain_dir = f"{archive_dir}/{domain}"
+        archive_hashes[domain] = fix_archive_permissions(domain_dir)
+
+    # Fix symlinks in each live directory
+    for domain in valid_live_domains:
+        domain_dir = f"{live_dir}/{domain}"
+        domain_versions = archive_hashes.get(domain)
+        if not domain_versions:
+            # We can't fix this domain -- no archive available
+            log.error("Unable to convert %s to symbolic links: no equivalent archive available", domain_dir)
+            continue
+
+        fix_live_symlinks(domain_dir, domain_versions)
+
+
+def remove_moved_domain_dirs(base_dir: str) -> Set[str]:
+    """
+    Remove -#### directories that Certbot created due to problematic permissions/symlinks in base_dir.
+    """
+    # The valid domains we encountered during our directory traversal
+    valid_domains: Set[str] = set()
+
+    # Mapping of valid domains to moved domain directories
+    moved_domains: Dict[str, Set[str]] = {}
+
+    with scandir(base_dir) as dir_iterator:
+        for entry in dir_iterator:
+            if not entry.is_dir(follow_symlinks=False):
+                continue
+
+            m = MOVED_DOMAIN_DIR_MATCHER.fullmatch(entry.name)
+            if m is not None:
+                # This was moved by Certbot due to problems.
+                domain = m.group("domain")
+                moved_domains.setdefault(domain, set())
+                moved_domains[domain].add(entry.name)
+                continue
+
+            m = VALID_DOMAIN_DIR_MATCHER.fullmatch(entry.name)
+            if m is not None:
+                # This is a valid domain directory
+                valid_domains.add(entry.name)
+            else:
+                log.error("Neither a moved or valid domain directory: %s", entry.name)
+
+    # Remove all moved domain directories for valid domains
+    for domain in valid_domains:
+        for moved_directory in moved_domains.get(domain, set()):
+            rmtree(f"{base_dir}/{moved_directory}")
+
+    return valid_domains
+
+
+def fix_archive_permissions(domain_dir: str) -> Dict[int, Dict[str, bytes]]:
+    """
+    Fix permissions in an archive domain directory and return a dictionary of the form:
+    {
+        version_number(int): {
+            filetype(str): hash(bytes),
+            ...
+        },
+        ...
+    }
+    """
+    domain_versions: Dict[int, Dict[str, bytes]] = {}
+
+    with scandir(domain_dir) as dir_iter:
+        for entry in dir_iter:
+            m = ARCHIVED_FILE_MATCHER.fullmatch(entry.name)
+            if m is None:
+                continue
+
+            filetype = m.group("filetype")
+            version = int(m.group("version"))
+
+            if filetype == "privkey":
+                # Set permissions to 600 (readable/write by owner, deny access to group/others)
+                chmod(entry.path, 0o600)
+            else:
+                # Set permissions to 644 (readable/writable by owner, readable by group/others)
+                chmod(entry.path, 0o644)
+
+            # Calculate the hash of this entry and add it to the hash entries
+            with open(entry.path, "rb") as fd:
+                digest = sha256(fd.read()).digest()
+
+                file_hashes_opt: Optional[Dict[str, bytes]] = domain_versions.get(version)
+                if file_hashes_opt is None:
+                    file_hashes: Dict[str, bytes] = {}
+                    domain_versions[version] = file_hashes
+                else:
+                    file_hashes = file_hashes_opt
+
+                file_hashes[filetype] = digest
+
+    # Make sure each version has a hash for each filetype
+    for version, file_hashes in list(domain_versions.items()):
+        if not all([filetype in file_hashes for filetype in ALL_FILETYPES]):
+            # No -- delete this version from consideration
+            del domain_versions[version]
+
+    return domain_versions
+
+
+def fix_live_symlinks(domain_dir: str, domain_versions: Dict[int, Dict[str, bytes]]) -> None:
+    """
+    Fix the symlinks in the live certificate directory domain_dir to point to an archive version.
+    """
+    log.debug("fix_live_symlinks: domain_dir=%s", domain_dir)
+    domain = basename(domain_dir)
+
+    for filetype in ALL_FILETYPES:
+        filename = f"{domain_dir}/{filetype}.pem"
+        try:
+            s_result = lstat(filename)
+        except OSError as e:
+            # We can't fix this domain
+            log.error("Live certificate directory %s is missing %s.pem: %s", domain, filetype, e)
             return
-        raise
 
-def create_config_zip() -> Dict[str, bytes]:
-    """
-    Create the configuration ZIP file for storage in S3 and return
-    a dictionary containing Certificate, CertificateChain, and PrivateKey
-    with those elements found.
-    """
-    acm_args = {}
+        if S_ISLNK(s_result.st_mode):
+            log.debug("File %s is already a link; aborting fixup for %s", filename, domain_dir)
+            return
+        if not S_ISREG(s_result.st_mode):
+            # Not sure what this file is -- don't try to fix
+            log.error("Discovered a non-link, non-file in live certifiate directory: %s", filename)
+            return
 
-    with ZipFile(CERTBOT_CONFIG_ZIP, "w", compression=ZIP_DEFLATED) as z:
-        for path, _, filenames in walk(CERTBOT_CONFIG_DIR):
+    # All four types are regular files. Get their hashes.
+    live_file_hashes = {}
+
+    for filetype in ALL_FILETYPES:
+        filename = f"{domain_dir}/{filetype}.pem"
+        with open(filename, "rb") as fd:
+            digest = sha256(fd.read())
+            live_file_hashes[filetype] = digest.digest()
+            log.debug("Hash for %s: %s", filename, digest.hexdigest())
+
+    # Find the latest version with our hashes
+    for version, archive_file_hashes in sorted(domain_versions.items(), reverse=True):
+        if archive_file_hashes != live_file_hashes:
+            log.info("Not using version %s: hashes are not equal", version)
+            continue
+
+        # Use this version
+        log.info("Pointing %s to archive version %d", domain, version)
+        for filetype in ALL_FILETYPES:
+            live_filename = f"{domain_dir}/{filetype}.pem"
+            archive_link = f"../../archive/{domain}/{filetype}{version}.pem"
+            unlink(live_filename)
+            symlink(archive_link, live_filename)
+
+        return
+
+    log.error("No archive version found that matches the digest for live: %s", basename(domain_dir))
+
+
+def create_config_zip(config_dir: str, config_zip: str) -> CertbotCertificate:
+    """
+    Create the configuration ZIP file for storage in S3 and return a dictionary containing Certificate, CertificateChain, and
+    PrivateKey with those elements found.
+    """
+    certificate = None
+    chain = None
+    full_chain = None
+    private_key = None
+
+    with ZipFile(config_zip, "w", compression=ZIP_DEFLATED) as z:
+        for path, _, filenames in walk(config_dir):
             for filename in filenames:
                 pathname = path + "/" + filename
-                relpath = pathname[len(CERTBOT_CONFIG_DIR) + 1:]
+                relpath_strip = len(config_dir) + 1
+                relpath = pathname[relpath_strip:]
                 print(f"Adding {relpath} to archive")
                 z.write(pathname, relpath)
 
-                if fnmatch(pathname, CERT_FILENAME_PATTERN):
+                if fnmatch(relpath, CERT_FILENAME_PATTERN):
                     with open(pathname, "rb") as fd:
-                        acm_args["Certificate"] = fd.read()
-                elif fnmatch(pathname, CHAIN_FILENAME_PATTERN):
+                        certificate = fd.read()
+                elif fnmatch(relpath, CHAIN_FILENAME_PATTERN):
                     with open(pathname, "rb") as fd:
-                        acm_args["CertificateChain"] = fd.read()
-                elif fnmatch(pathname, FULLCHAIN_FILENAME_PATTERN):
+                        chain = fd.read()
+                elif fnmatch(relpath, FULLCHAIN_FILENAME_PATTERN):
                     with open(pathname, "rb") as fd:
-                        acm_args["CertificateFullChain"] = fd.read()
-                elif fnmatch(pathname, KEY_FILENAME_PATTERN):
+                        full_chain = fd.read()
+                elif fnmatch(relpath, KEY_FILENAME_PATTERN):
                     with open(pathname, "rb") as fd:
-                        acm_args["PrivateKey"] = fd.read()
+                        private_key = fd.read()
 
-    return acm_args
+    if certificate is None:
+        raise ValueError(f"Did not find live certificate in {config_dir}")
+
+    if chain is None:
+        raise ValueError(f"Did not find intermediate certificate in {config_dir}")
+
+    if full_chain is None:
+        raise ValueError(f"Did not find full certificate chain in {config_dir}")
+
+    if private_key is None:
+        raise ValueError(f"Did not find private key in {config_dir}")
+
+    return CertbotCertificate(certificate=certificate, chain=chain, full_chain=full_chain, private_key=private_key)
+
 
 def get_ssm_parameter(parameter_name: str) -> Optional[str]:
     """
@@ -180,6 +418,7 @@ def get_ssm_parameter(parameter_name: str) -> Optional[str]:
             return None
         raise
 
+
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Lambda entry point. The input event has the following fields:
@@ -188,23 +427,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         "acm-certificate-filters": {
             "domain": "dns.domain.name",
             "extended-key-usage": [
-                "TLS_WEB_SERVER_AUTHENTICATION",
-                "TLS_WEB_CLIENT_AUTHENTICATION", "CODE_SIGNING",
-                "EMAIL_PROTECTION", "TIME_STAMPING", "OCSP_SIGNING",
-                "IPSEC_END_SYSTEM", "IPSEC_TUNNEL", "IPSEC_USER", "ANY",
-                "NONE", "CUSTOM"
+                "TLS_WEB_SERVER_AUTHENTICATION", "TLS_WEB_CLIENT_AUTHENTICATION", "CODE_SIGNING", "EMAIL_PROTECTION",
+                "TIME_STAMPING", "OCSP_SIGNING", "IPSEC_END_SYSTEM", "IPSEC_TUNNEL", "IPSEC_USER", "ANY", "NONE", "CUSTOM"
             ],
-            "key-type": [
-                "RSA_1024", "RSA_2048", "RSA_4096", "EC_prime256v1",
-                "EC_secp384r1", "EC_secp521r1"],
+            "key-type": ["RSA_1024", "RSA_2048", "RSA_4096", "EC_prime256v1", "EC_secp384r1", "EC_secp521r1"],
             "key-usage": [
-                "DIGITAL_SIGNATURE", "NON_REPUDIATION", "KEY_ENCIPHERMENT",
-                "DATA_ENCIPHERMENT", "KEY_AGREEMENT", "CERTIFICATE_SIGNING",
-                "CRL_SIGNING", "ENCIPHER_ONLY", "DECIPHER_ONLY", "ANY",
-                "CUSTOM"],
-            "status": [
-                "PENDING_VALIDTION", "ISSUED", "INACTIVE", "EXPIRED",
-                "VALIDATION_TIMED_OUT", "REVOKED", "FAILED"],
+                "DIGITAL_SIGNATURE", "NON_REPUDIATION", "KEY_ENCIPHERMENT", "DATA_ENCIPHERMENT", "KEY_AGREEMENT",
+                "CERTIFICATE_SIGNING", "CRL_SIGNING", "ENCIPHER_ONLY", "DECIPHER_ONLY", "ANY", "CUSTOM"],
+            "status": ["PENDING_VALIDTION", "ISSUED", "INACTIVE", "EXPIRED", "VALIDATION_TIMED_OUT", "REVOKED", "FAILED"],
             "type": ["AMAZON_ISSUED", "IMPORTED"],
         },
         "agree-tos": true,
@@ -216,29 +446,23 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         "rsa-key-size": 2048,
         "ssm-parameter-prefix": "/path/parameter",
         "ssm-kms-key": "alias/key-name"
-
     }
 
-    *   acm-certificate-arn is optional. If set, any new certificates are
-        imported into this ACM certificate.
-    *   acm-certificate-filters is a list of filters to use to find an existing
-        certificate to import into. This must return zero or one certificates.
+    *   acm-certificate-arn is optional. If set, any new certificates are imported into this ACM certificate.
+    *   acm-certificate-filters is a list of filters to use to find an existing certificate to import into. This must return zero
+        or one certificates.
     *   agree-tos is NOT optional and must be set.
-    *   config-store-url is NOT optional and must be an
-        s3://<bucket>/<key> URL. The certbot config directory is stored here
-        as a ZIP archive.
-    *   config-store-kms-key is a KMS alias or ARN used to encrypt the certbot
-        config archive. If omitted, it defaults to "alias/aws/s3".
+    *   config-store-url is NOT optional and must be an s3://<bucket>/<key> URL. The certbot config directory is stored here as a
+        ZIP archive.
+    *   config-store-kms-key is a KMS alias or ARN used to encrypt the certbot config archive. If omitted, it defaults
+        to "alias/aws/s3".
     *   endpoint is optional and defaults to the LetsEncrypt staging server.
     *   rsa-key-size is optional and defaults to 2048.
-    *   ssm-parameter-prefix is optional. If set, the resulting certificate,
-        chain, and key files are save to the SSM parameter store under the
-        given prefix.
-    *   ssm-kms-key is optional. If ssm-parameter-prefix is set,
-        this specifies the KMS alias or ARN used to encrypt the TLS key.
+    *   ssm-parameter-prefix is optional. If set, the resulting certificate, chain, and key files are save to the SSM parameter
+        store under the given prefix.
+    *   ssm-kms-key is optional. If ssm-parameter-prefix is set, this specifies the KMS alias or ARN used to encrypt the TLS key.
         If omitted, it defaults to "alias/aws/ssm".
-    *   ssm-tier is optional and defaults to "Standard". Use "Advanced" to
-        enable the use of advanced SSM features.
+    *   ssm-tier is optional and defaults to "Standard". Use "Advanced" to enable the use of advanced SSM features.
     """
     acm_certificate_arn = event.get("acm-certificate-arn")
     acm_certificate_filters = event.get("acm-certificate-filters", {})
@@ -271,120 +495,94 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         errors.append("domains not specified or is empty")
 
     if rsa_key_size not in VALID_RSA_KEY_SIZES:
-        errors.append(
-            f"rsa-key-size must be one of {', '.join(VALID_RSA_KEY_SIZES)}: "
-            f"{rsa_key_size}")
+        errors.append(f"rsa-key-size must be one of {', '.join([str(s) for s in VALID_RSA_KEY_SIZES])}: " f"{rsa_key_size}")
 
     if errors:
-        raise ValueError("Invalid event: " + '\n'.join(errors))
+        raise ValueError("Invalid event: " + "\n".join(errors))
 
     acm = boto3.client("acm")
     if acm_certificate_arn or acm_certificate_filters:
-        acm_certificate_arn = find_existing_certificate(
-            acm_certificate_arn, acm_certificate_filters)
+        acm_certificate_arn = find_existing_certificate(acm_certificate_arn, acm_certificate_filters)
 
-    if exists(CERTBOT_CONFIG_DIR):
-        rmtree(CERTBOT_CONFIG_DIR)
-    if exists(CERTBOT_WORK_DIR):
-        rmtree(CERTBOT_WORK_DIR)
-    if exists(CERTBOT_LOG_DIR):
-        rmtree(CERTBOT_LOG_DIR)
+    with TemporaryDirectory("certbot") as certbot_base_dir:
+        certbot_config_dir = f"{certbot_base_dir}/config"
+        certbot_work_dir = f"{certbot_base_dir}/work"
+        certbot_log_dir = f"{certbot_base_dir}/log"
+        certbot_config_zip = f"{certbot_base_dir}/config.zip"
 
-    makedirs(CERTBOT_CONFIG_DIR)
-    makedirs(CERTBOT_WORK_DIR)
-    makedirs(CERTBOT_LOG_DIR)
+        makedirs(certbot_config_dir)
+        makedirs(certbot_work_dir)
+        makedirs(certbot_log_dir)
 
-    download_certbot_config(config_bucket, config_key)
+        download_certbot_config(config_bucket, config_key, certbot_base_dir, certbot_config_zip)
 
-    cmd = [
-        "certonly", "--non-interactive",
-        "--preferred-challenges", "dns",
-        "--user-agent-comment", "certbot-to-acm/0.1",
-        "--agree-tos",
-        "--config-dir", CERTBOT_CONFIG_DIR,
-        "--work-dir", CERTBOT_WORK_DIR,
-        "--logs-dir", CERTBOT_LOG_DIR,
-        "--server", endpoint,
-        "--dns-route53",
-    ]
+        cmd = [
+            "certonly", "--non-interactive", "--preferred-challenges", "dns", "--user-agent-comment", "certbot-to-acm/0.1",
+            "--agree-tos", "--config-dir", certbot_config_dir, "--work-dir", certbot_work_dir, "--logs-dir", certbot_log_dir,
+            "--server", endpoint, "--dns-route53",
+        ]
 
-    if email:
-        cmd += ["--email", email]
-    else:
-        cmd += ["--register-unsafely-without-email"]
+        if email:
+            cmd += ["--email", email]
+        else:
+            cmd += ["--register-unsafely-without-email"]
 
-    if isinstance(domains, str):
-        domains = [domains]
+        if isinstance(domains, str):
+            domains = [domains]
 
-    for domain in domains:
-        cmd += ["--domain", domain]
+        for domain in domains:
+            cmd += ["--domain", domain]
 
-    result = certbot.main.main(cmd)
-    if result:
-        print(f"certbot command failed: {result}", file=stderr)
-        raise RuntimeError(
-            f"certbot command exited with exit code {result}")
+        result = certbot.main.main(cmd)
+        if result:
+            print(f"certbot command failed: {result}", file=stderr)
+            raise RuntimeError(f"certbot command exited with exit code {result}")
 
-    cert_args = create_config_zip()
+        certbot_cert = create_config_zip(certbot_config_dir, certbot_config_zip)
+        with open(certbot_config_zip, "rb") as fd:
+            s3.put_object(
+                ACL="private", Body=fd, Bucket=config_bucket, Key=config_key, ServerSideEncryption="aws:kms",
+                SSEKMSKeyId=config_store_kms_key)
+        unlink(certbot_config_zip)
 
-    if "Certificate" not in cert_args:
-        raise ValueError("Did not find certificate")
+        acm_args = {}
+        if acm_certificate_arn:
+            acm_args["CertificateArn"] = acm_certificate_arn
+        acm.import_certificate(
+            Certificate=certbot_cert.certificate, CertificateChain=certbot_cert.chain, PrivateKey=certbot_cert.private_key,
+            **acm_args)
 
-    if "CertificateChain" not in cert_args:
-        raise ValueError("Did not find certificate chain")
+        if ssm_parameter_prefix:
+            if not ssm_parameter_prefix.startswith("/"):
+                ssm_parameter_prefix = "/" + ssm_parameter_prefix
+            if not ssm_parameter_prefix.endswith("/"):
+                ssm_parameter_prefix = ssm_parameter_prefix + "/"
 
-    if "PrivateKey" not in cert_args:
-        raise ValueError("Did not find private key")
+            existing_cert = get_ssm_parameter(f"{ssm_parameter_prefix}cert")
+            existing_chain = get_ssm_parameter(f"{ssm_parameter_prefix}chain")
+            existing_fullchain = get_ssm_parameter(f"{ssm_parameter_prefix}fullchain")
+            existing_key = get_ssm_parameter(f"{ssm_parameter_prefix}key")
 
-    with open(CERTBOT_CONFIG_ZIP, "rb") as fd:
-        s3.put_object(
-            ACL='private', Body=fd, Bucket=config_bucket, Key=config_key,
-            ServerSideEncryption="aws:kms", SSEKMSKeyId=config_store_kms_key)
-    unlink(CERTBOT_CONFIG_ZIP)
+            cert = certbot_cert.certificate.decode("utf-8")
+            chain = certbot_cert.chain.decode("utf-8")
+            fullchain = certbot_cert.full_chain.decode("utf-8")
+            key = certbot_cert.private_key.decode("utf-8")
 
-    acm_args = {}
-    acm_args.update(cert_args)
-    del acm_args["CertificateFullChain"]
-    if acm_certificate_arn:
-        acm_args["CertificateArn"] = acm_certificate_arn
-    acm.import_certificate(**acm_args)
-
-    if ssm_parameter_prefix:
-        if not ssm_parameter_prefix.startswith("/"):
-            ssm_parameter_prefix = "/" + ssm_parameter_prefix
-        if not ssm_parameter_prefix.endswith("/"):
-            ssm_parameter_prefix = ssm_parameter_prefix + "/"
-        
-        existing_cert = get_ssm_parameter(f"{ssm_parameter_prefix}cert")
-        existing_chain = get_ssm_parameter(f"{ssm_parameter_prefix}chain")
-        existing_fullchain = get_ssm_parameter(f"{ssm_parameter_prefix}fullchain")
-        existing_key = get_ssm_parameter(f"{ssm_parameter_prefix}key")
-
-        cert = cert_args["Certificate"].decode("utf-8")
-        chain = cert_args["CertificateChain"].decode("utf-8")
-        fullchain = cert_args["CertificateFullChain"].decode("utf-8")
-        key = cert_args["PrivateKey"].decode("utf-8")
-
-        if existing_cert != cert:
-            ssm.put_parameter(
-                Name=f"{ssm_parameter_prefix}cert",
-                Description=f"TLS certificate for {' '.join(domains)}",
-                Overwrite=True, Value=cert, Type="String", Tier=ssm_tier)
-        if existing_chain != chain:
-            ssm.put_parameter(
-                Name=f"{ssm_parameter_prefix}chain",
-                Description=f"TLS intermediate for {' '.join(domains)}",
-                Overwrite=True, Value=chain, Type="String", Tier=ssm_tier)
-        if existing_fullchain != fullchain:
-            ssm.put_parameter(
-                Name=f"{ssm_parameter_prefix}fullchain",
-                Description=f"TLS fullchain for {' '.join(domains)}",
-                Overwrite=True, Value=fullchain, Type="String", Tier=ssm_tier)
-        if existing_key != key:
-            ssm.put_parameter(
-                Name=f"{ssm_parameter_prefix}privkey",
-                Description=f"TLS key for {' '.join(domains)}",
-                KeyId=ssm_kms_key, Overwrite=True, Value=key,
-                Type="SecureString", Tier=ssm_tier)
+            if existing_cert != cert:
+                ssm.put_parameter(
+                    Name=f"{ssm_parameter_prefix}cert", Description=f"TLS certificate for {' '.join(domains)}", Overwrite=True,
+                    Value=cert, Type="String", Tier=ssm_tier)
+            if existing_chain != chain:
+                ssm.put_parameter(
+                    Name=f"{ssm_parameter_prefix}chain", Description=f"TLS intermediate for {' '.join(domains)}", Overwrite=True,
+                    Value=chain, Type="String", Tier=ssm_tier)
+            if existing_fullchain != fullchain:
+                ssm.put_parameter(
+                    Name=f"{ssm_parameter_prefix}fullchain", Description=f"TLS fullchain for {' '.join(domains)}", Overwrite=True,
+                    Value=fullchain, Type="String", Tier=ssm_tier)
+            if existing_key != key:
+                ssm.put_parameter(
+                    Name=f"{ssm_parameter_prefix}privkey", Description=f"TLS key for {' '.join(domains)}", KeyId=ssm_kms_key,
+                    Overwrite=True, Value=key, Type="SecureString", Tier=ssm_tier)
 
     return {}

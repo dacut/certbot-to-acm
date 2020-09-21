@@ -2,6 +2,7 @@
 from io import StringIO
 import json
 
+
 def preprocess(obj, s):
     pos = 0
     s_len = len(s)
@@ -17,7 +18,7 @@ def preprocess(obj, s):
         next_end = s.find("}@@", next_start)
         assert next_end != -1
 
-        var = s[next_start + 3:next_end]
+        var = s[next_start + 3 : next_end]
         pos = next_end + 3
 
         elements = var.split(".")
@@ -28,6 +29,7 @@ def preprocess(obj, s):
         result.write(tree)
 
     return result.getvalue()
+
 
 def main():
     with open("versions.json", "r") as fd:
@@ -40,6 +42,7 @@ def main():
 
     with open("certbot-to-acm.yaml", "w") as ofd:
         ofd.write(outfile)
+
 
 if __name__ == "__main__":
     main()

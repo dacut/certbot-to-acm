@@ -5,6 +5,7 @@ from boto3.session import Session
 
 LAYER_NAMES = ("certbot-py36", "certbot-py37", "certbot-py38")
 
+
 def get_layer_versions(region, profile):
     result = {region: {}}
     session = Session(profile_name=profile, region_name=region)
@@ -27,11 +28,13 @@ def get_layer_versions(region, profile):
 
     return result
 
+
 def get_zip_versions(region, profile):
     session = Session(profile_name=profile, region_name=region)
     s3 = session.client("s3")
     result = s3.head_object(Bucket=f"ionosphere-public-{region}", Key="certbot-to-acm.zip")
     return {region: {"version": result["VersionId"]}}
+
 
 def main():
     with open(".profiles.txt", "r") as fd:
@@ -73,6 +76,7 @@ def main():
 
     with open("versions.json", "w") as fd:
         json.dump(versions, fd, indent=4)
+
 
 if __name__ == "__main__":
     main()

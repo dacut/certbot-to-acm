@@ -3,9 +3,8 @@
 Create a ZIP archive containing all diffs from /var/lang.
 """
 from fnmatch import fnmatch
-from os import chdir, walk
-from stat import S_ISLNK, S_ISREG
-from sys import stderr, version_info
+from os import walk
+from sys import version_info
 from zipfile import ZipFile, ZIP_DEFLATED
 
 excluded = {
@@ -34,6 +33,7 @@ excluded = {
     "lib/python*/site-packages/zope/proxy/tests/*",
 }
 
+
 def main():
     maj_min = f"{version_info[0]}.{version_info[1]}"
     base_dir = "/tmp/venv"
@@ -47,7 +47,8 @@ def main():
         for filename in filenames:
             pathname = path + "/" + filename
             assert pathname.startswith(base_dir + "/")
-            relpath = pathname[len(base_dir) + 1:]
+            base_dir_strip = len(base_dir) + 1
+            relpath = pathname[base_dir_strip:]
             for excluded_path in excluded:
                 if fnmatch(relpath, excluded_path):
                     # Don't include this file;
@@ -67,7 +68,11 @@ def main():
     with ZipFile(zipname, "w", compression=ZIP_DEFLATED, **zip_kw) as z:
         for relpath in files:
             print("Adding %s" % relpath)
-            z.write(base_dir + "/" + relpath, arcname=f"python/{relpath}",)
+            z.write(
+                base_dir + "/" + relpath,
+                arcname=f"python/{relpath}",
+            )
+
 
 if __name__ == "__main__":
     main()

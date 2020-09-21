@@ -1,0 +1,46 @@
+#!/bin/bash
+basedir="$(cd "$(dirname "$0")"; /bin/pwd)"
+
+if [[ -z "$VIRTUAL_ENV" ]]; then
+    if [[ -d "$basedir/venv" ]]; then
+        if [[ -r "$basedir/venv/bin/activate" ]]; then
+            . "$basedir/venv/bin/activate"
+        else
+            echo "Directory $basedir/venv is present but doesn't appear to have an bin/activate script" 1>&2;
+            exit 1;
+        fi;
+    else
+        python3 -m venv "$basedir/venv" || exit 1
+        . "$basedir/venv/bin/activate"
+    fi
+fi;
+
+if [[ ! -r "$VIRTUAL_ENV/.check-requirements-installed" || "$VIRTUAL_ENV/.check-requirements-installed" -ot "$basedir/requirements-dev.txt" ]]; then
+    echo "Installing requirements from $basedir/requirements-dev.txt"
+    if ! pip3 install -r "$basedir/requirements-dev.txt"; then
+        echo "Failed to install check packages" 1>&2;
+        exit 1;
+    fi;
+
+    touch "$VIRTUAL_ENV/.check-requirements-installed"
+fi
+
+cd "$basedir"
+exitcode=0
+
+# if ! black *.py ; then
+#     echo "Black reformatting failed" 1>&2;
+#     exitcode=1;
+# fi;
+
+if ! flake8 *.py ; then
+    echo "Flake8 syntax checks failed" 1>&2;
+    exitcode=1
+fi;
+
+if ! mypy *.py ; then
+    echo "Mypy type analysis checks failed" 1>&2;
+    exitcode=1
+fi;
+
+exit $exitcode
