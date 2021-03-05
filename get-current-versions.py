@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 import json
 from boto3.session import Session
 
-LAYER_NAMES = ("certbot-py36", "certbot-py37", "certbot-py38")
+LAYER_NAMES = ("certbot-py38",)
 
 
 def get_layer_versions(region, profile):
@@ -62,10 +62,12 @@ def main():
     zip_versions = {}
 
     for future in layer_versions_futures:
-        layer_versions.update(future.result())
+        if future.exception() is None:
+            layer_versions.update(future.result())
 
     for future in zip_versions_futures:
-        zip_versions.update(future.result())
+        if future.exception() is None:
+            zip_versions.update(future.result())
 
     versions = {
         "Versions": {

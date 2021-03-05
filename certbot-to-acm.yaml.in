@@ -1,89 +1,45 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Mappings:
   CertbotLayer:
-    ap-east-1:
-      python36: "@@{Versions.CertbotLayer.ap-east-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.ap-east-1.python37}@@"
-      python38: "@@{Versions.CertbotLayer.ap-east-1.python38}@@"
     ap-northeast-1:
-      python36: "@@{Versions.CertbotLayer.ap-northeast-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.ap-northeast-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.ap-northeast-1.python38}@@"
     ap-northeast-2:
-      python36: "@@{Versions.CertbotLayer.ap-northeast-2.python36}@@"
-      python37: "@@{Versions.CertbotLayer.ap-northeast-2.python37}@@"
       python38: "@@{Versions.CertbotLayer.ap-northeast-2.python38}@@"
     ap-south-1:
-      python36: "@@{Versions.CertbotLayer.ap-south-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.ap-south-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.ap-south-1.python38}@@"
     ap-southeast-1:
-      python36: "@@{Versions.CertbotLayer.ap-southeast-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.ap-southeast-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.ap-southeast-1.python38}@@"
     ap-southeast-2:
-      python36: "@@{Versions.CertbotLayer.ap-southeast-2.python36}@@"
-      python37: "@@{Versions.CertbotLayer.ap-southeast-2.python37}@@"
       python38: "@@{Versions.CertbotLayer.ap-southeast-2.python38}@@"
     ca-central-1:
-      python36: "@@{Versions.CertbotLayer.ca-central-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.ca-central-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.ca-central-1.python38}@@"
     eu-central-1:
-      python36: "@@{Versions.CertbotLayer.eu-central-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.eu-central-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.eu-central-1.python38}@@"
     eu-north-1:
-      python36: "@@{Versions.CertbotLayer.eu-north-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.eu-north-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.eu-north-1.python38}@@"
     eu-west-1:
-      python36: "@@{Versions.CertbotLayer.eu-west-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.eu-west-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.eu-west-1.python38}@@"
     eu-west-2:
-      python36: "@@{Versions.CertbotLayer.eu-west-2.python36}@@"
-      python37: "@@{Versions.CertbotLayer.eu-west-2.python37}@@"
       python38: "@@{Versions.CertbotLayer.eu-west-2.python38}@@"
     eu-west-3:
-      python36: "@@{Versions.CertbotLayer.eu-west-3.python36}@@"
-      python37: "@@{Versions.CertbotLayer.eu-west-3.python37}@@"
       python38: "@@{Versions.CertbotLayer.eu-west-3.python38}@@"
     me-south-1:
-      python36: "@@{Versions.CertbotLayer.me-south-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.me-south-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.me-south-1.python38}@@"
     sa-east-1:
-      python36: "@@{Versions.CertbotLayer.sa-east-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.sa-east-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.sa-east-1.python38}@@"
     us-east-1:
-      python36: "@@{Versions.CertbotLayer.us-east-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.us-east-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.us-east-1.python38}@@"
     us-east-2:
-      python36: "@@{Versions.CertbotLayer.us-east-2.python36}@@"
-      python37: "@@{Versions.CertbotLayer.us-east-2.python37}@@"
       python38: "@@{Versions.CertbotLayer.us-east-2.python38}@@"
     us-gov-east-1:
-      python36: "@@{Versions.CertbotLayer.us-gov-east-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.us-gov-east-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.us-gov-east-1.python38}@@"
     us-gov-west-1:
-      python36: "@@{Versions.CertbotLayer.us-gov-west-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.us-gov-west-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.us-gov-west-1.python38}@@"
     us-west-1:
-      python36: "@@{Versions.CertbotLayer.us-west-1.python36}@@"
-      python37: "@@{Versions.CertbotLayer.us-west-1.python37}@@"
       python38: "@@{Versions.CertbotLayer.us-west-1.python38}@@"
     us-west-2:
-      python36: "@@{Versions.CertbotLayer.us-west-2.python36}@@"
-      python37: "@@{Versions.CertbotLayer.us-west-2.python37}@@"
       python38: "@@{Versions.CertbotLayer.us-west-2.python38}@@"
   CertbotToACMFunctionZIP:
-    ap-east-1:
-      version: "@@{Versions.CertbotToACMFunctionZIP.ap-east-1.version}@@"
     ap-northeast-1:
       version: "@@{Versions.CertbotToACMFunctionZIP.ap-northeast-1.version}@@"
     ap-northeast-2:

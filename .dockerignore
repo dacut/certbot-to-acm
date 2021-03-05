@@ -1,4 +1,7 @@
-export/*
-venv/*
+export
+venv
 *.zip
 .git
+.mypy_cache
+.tox
+
