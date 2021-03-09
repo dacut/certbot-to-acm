@@ -11,9 +11,9 @@ from re import compile as re_compile, fullmatch
 from shutil import rmtree
 from stat import S_ISLNK, S_ISREG
 from sys import stderr
+from tarfile import open as tarfile_open
 from tempfile import TemporaryFile, TemporaryDirectory
 from typing import Any, Dict, NamedTuple, Optional, Set
-from zipfile import ZipFile, ZIP_DEFLATED
 
 from botocore.exceptions import ClientError
 import boto3
@@ -145,223 +145,41 @@ def find_existing_certificate(arn: Optional[str], filters: Dict[str, Any]) -> Op
 
 def download_certbot_config(config_bucket: str, config_key: str, certbot_config_dir: str, certbot_work_dir: str) -> None:
     """
-    Download the configuration ZIP file from S3 and extract it to the certbot config directory.
+    Download the configuration tar file from S3 and extract it to the certbot config directory.
     """
-    with TemporaryFile(prefix="config", suffix="zip", dir=certbot_work_dir) as fd:
+    with TemporaryFile(prefix="config", suffix=".tar.gz", dir=certbot_work_dir) as fd:
         try:
             result = s3.get_object(Bucket=config_bucket, Key=config_key)
         except ClientError as e:
-            if e.response.get("Error", {}).get("Message") == "Not Found":
+            if e.response["Error"]["Code"] == "NoSuchKey":
                 return
             raise
 
+        body = result["Body"]
+        first_chunk = True
+
         while True:
-            chunk = result.body.read(65536)
+            chunk = body.read(65536)
             if not chunk:
                 break
+            
+            if first_chunk:
+                if chunk[:4] == b'\x50\x4b\x03\x04':
+                    # Legacy ZIP file -- don't use
+                    return
+                first_chunk = False
 
             fd.write(chunk)
 
         fd.seek(0)
 
-        with ZipFile(fd, "r") as z:
-            z.extractall(certbot_config_dir)
-            fixup_config_dir(certbot_config_dir)
+        with tarfile_open(fd, "r") as tf:
+            tf.extractall(certbot_config_dir)
 
 
-def fixup_config_dir(config_root: str) -> None:
+def create_config_tarfile(config_dir: str, config_tarfile: str) -> CertbotCertificate:
     """
-    Fix permissions and symbolic links in the config directory. This information is usually lost when creating the ZIP.
-    """
-    archive_dir = f"{config_root}/archive"
-    live_dir = f"{config_root}/live"
-    if not isdir(archive_dir):
-        log.error("Archive directory %s is not present", archive_dir)
-
-    if not isdir(live_dir):
-        log.error("Live directory %s is not present", live_dir)
-        return
-
-    # Remove -#### directories from live and archive and get a list of valid domain directories
-    valid_archive_domains = remove_moved_domain_dirs(archive_dir)
-    valid_live_domains = remove_moved_domain_dirs(live_dir)
-
-    log.debug("valid_archive_domains: %s", " ".join(valid_archive_domains))
-    log.debug("valid_live_domains: %s", " ".join(valid_live_domains))
-
-    # This is a map in the form:
-    # {
-    #      "domain.name": {
-    #           0: {                            # version of files
-    #                "chain": b'sha256hash',    # filetype -> SHA256 digest
-    #           },
-    #           1: { ... }
-    #      }
-    # }
-    archive_hashes: Dict[str, Dict[int, Dict[str, bytes]]] = {}
-
-    # Fix permissions in each archive directory
-    for domain in valid_archive_domains:
-        domain_dir = f"{archive_dir}/{domain}"
-        archive_hashes[domain] = fix_archive_permissions(domain_dir)
-
-    # Fix symlinks in each live directory
-    for domain in valid_live_domains:
-        domain_dir = f"{live_dir}/{domain}"
-        domain_versions = archive_hashes.get(domain)
-        if not domain_versions:
-            # We can't fix this domain -- no archive available
-            log.error("Unable to convert %s to symbolic links: no equivalent archive available", domain_dir)
-            continue
-
-        fix_live_symlinks(domain_dir, domain_versions)
-
-
-def remove_moved_domain_dirs(base_dir: str) -> Set[str]:
-    """
-    Remove -#### directories that Certbot created due to problematic permissions/symlinks in base_dir.
-    """
-    # The valid domains we encountered during our directory traversal
-    valid_domains: Set[str] = set()
-
-    # Mapping of valid domains to moved domain directories
-    moved_domains: Dict[str, Set[str]] = {}
-
-    with scandir(base_dir) as dir_iterator:
-        for entry in dir_iterator:
-            if not entry.is_dir(follow_symlinks=False):
-                continue
-
-            m = MOVED_DOMAIN_DIR_MATCHER.fullmatch(entry.name)
-            if m is not None:
-                # This was moved by Certbot due to problems.
-                domain = m.group("domain")
-                moved_domains.setdefault(domain, set())
-                moved_domains[domain].add(entry.name)
-                continue
-
-            m = VALID_DOMAIN_DIR_MATCHER.fullmatch(entry.name)
-            if m is not None:
-                # This is a valid domain directory
-                valid_domains.add(entry.name)
-            else:
-                log.error("Neither a moved or valid domain directory: %s", entry.name)
-
-    # Remove all moved domain directories for valid domains
-    for domain in valid_domains:
-        for moved_directory in moved_domains.get(domain, set()):
-            rmtree(f"{base_dir}/{moved_directory}")
-
-    return valid_domains
-
-
-def fix_archive_permissions(domain_dir: str) -> Dict[int, Dict[str, bytes]]:
-    """
-    Fix permissions in an archive domain directory and return a dictionary of the form:
-    {
-        version_number(int): {
-            filetype(str): hash(bytes),
-            ...
-        },
-        ...
-    }
-    """
-    domain_versions: Dict[int, Dict[str, bytes]] = {}
-
-    with scandir(domain_dir) as dir_iter:
-        for entry in dir_iter:
-            m = ARCHIVED_FILE_MATCHER.fullmatch(entry.name)
-            if m is None:
-                continue
-
-            filetype = m.group("filetype")
-            version = int(m.group("version"))
-
-            if filetype == "privkey":
-                # Set permissions to 600 (readable/write by owner, deny access to group/others)
-                chmod(entry.path, 0o600)
-            else:
-                # Set permissions to 644 (readable/writable by owner, readable by group/others)
-                chmod(entry.path, 0o644)
-
-            # Calculate the hash of this entry and add it to the hash entries
-            with open(entry.path, "rb") as fd:
-                digest = sha256(fd.read()).digest()
-
-                file_hashes_opt: Optional[Dict[str, bytes]] = domain_versions.get(version)
-                if file_hashes_opt is None:
-                    file_hashes: Dict[str, bytes] = {}
-                    domain_versions[version] = file_hashes
-                else:
-                    file_hashes = file_hashes_opt
-
-                file_hashes[filetype] = digest
-
-    # Make sure each version has a hash for each filetype
-    for version, file_hashes in list(domain_versions.items()):
-        if not all([filetype in file_hashes for filetype in ALL_FILETYPES]):
-            # No -- delete this version from consideration
-            del domain_versions[version]
-
-    return domain_versions
-
-
-def fix_live_symlinks(domain_dir: str, domain_versions: Dict[int, Dict[str, bytes]]) -> None:
-    """
-    Fix the symlinks in the live certificate directory domain_dir to point to an archive version.
-    """
-    log.debug("fix_live_symlinks: domain_dir=%s", domain_dir)
-    domain = basename(domain_dir)
-
-    for filetype in ALL_FILETYPES:
-        filename = f"{domain_dir}/{filetype}.pem"
-        try:
-            s_result = lstat(filename)
-        except OSError as e:
-            # We can't fix this domain
-            log.error("Live certificate directory %s is missing %s.pem: %s", domain, filetype, e)
-            return
-
-        if S_ISLNK(s_result.st_mode):
-            log.debug("File %s is already a link; aborting fixup for %s", filename, domain_dir)
-            return
-        if not S_ISREG(s_result.st_mode):
-            # Not sure what this file is -- don't try to fix
-            log.error("Discovered a non-link, non-file in live certifiate directory: %s", filename)
-            return
-
-    # All four types are regular files. Get their hashes.
-    live_file_hashes = {}
-
-    for filetype in ALL_FILETYPES:
-        filename = f"{domain_dir}/{filetype}.pem"
-        with open(filename, "rb") as fd:
-            digest = sha256(fd.read())
-            live_file_hashes[filetype] = digest.digest()
-            log.debug("Hash for %s: %s", filename, digest.hexdigest())
-
-    # Find the latest version with our hashes
-    for version, archive_file_hashes in sorted(domain_versions.items(), reverse=True):
-        if archive_file_hashes != live_file_hashes:
-            log.info("Not using version %s: hashes are not equal", version)
-            continue
-
-        # Use this version
-        log.info("Pointing %s to archive version %d", domain, version)
-        for filetype in ALL_FILETYPES:
-            live_filename = f"{domain_dir}/{filetype}.pem"
-            archive_link = f"../../archive/{domain}/{filetype}{version}.pem"
-            unlink(live_filename)
-            symlink(archive_link, live_filename)
-
-        return
-
-    log.error("No archive version found that matches the digest for live: %s", basename(domain_dir))
-
-
-def create_config_zip(config_dir: str, config_zip: str) -> CertbotCertificate:
-    """
-    Create the configuration ZIP file for storage in S3 and return a dictionary containing Certificate, CertificateChain, and
+    Create the configuration tar file for storage in S3 and return a dictionary containing Certificate, CertificateChain, and
     PrivateKey with those elements found.
     """
     certificate = None
@@ -369,14 +187,14 @@ def create_config_zip(config_dir: str, config_zip: str) -> CertbotCertificate:
     full_chain = None
     private_key = None
 
-    with ZipFile(config_zip, "w", compression=ZIP_DEFLATED) as z:
+    with tarfile_open(config_tarfile, "w:gz") as tf:
         for path, _, filenames in walk(config_dir):
             for filename in filenames:
                 pathname = path + "/" + filename
                 relpath_strip = len(config_dir) + 1
                 relpath = pathname[relpath_strip:]
                 print(f"Adding {relpath} to archive")
-                z.write(pathname, relpath)
+                tf.add(pathname, relpath, recursive=False)
 
                 if fnmatch(relpath, CERT_FILENAME_PATTERN):
                     with open(pathname, "rb") as fd:
@@ -453,7 +271,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         or one certificates.
     *   agree-tos is NOT optional and must be set.
     *   config-store-url is NOT optional and must be an s3://<bucket>/<key> URL. The certbot config directory is stored here as a
-        ZIP archive.
+        tar.gz archive.
     *   config-store-kms-key is a KMS alias or ARN used to encrypt the certbot config archive. If omitted, it defaults
         to "alias/aws/s3".
     *   endpoint is optional and defaults to the LetsEncrypt staging server.
@@ -508,13 +326,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         certbot_config_dir = f"{certbot_base_dir}/config"
         certbot_work_dir = f"{certbot_base_dir}/work"
         certbot_log_dir = f"{certbot_base_dir}/log"
-        certbot_config_zip = f"{certbot_base_dir}/config.zip"
+        certbot_config_tarfile = f"{certbot_base_dir}/config.tar.gz"
 
         makedirs(certbot_config_dir)
         makedirs(certbot_work_dir)
         makedirs(certbot_log_dir)
 
-        download_certbot_config(config_bucket, config_key, certbot_base_dir, certbot_config_zip)
+        download_certbot_config(config_bucket, config_key, certbot_config_dir, certbot_work_dir)
 
         cmd = [
             "certonly", "--non-interactive", "--preferred-challenges", "dns", "--user-agent-comment", "certbot-to-acm/0.1",
@@ -538,12 +356,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             print(f"certbot command failed: {result}", file=stderr)
             raise RuntimeError(f"certbot command exited with exit code {result}")
 
-        certbot_cert = create_config_zip(certbot_config_dir, certbot_config_zip)
-        with open(certbot_config_zip, "rb") as fd:
+        certbot_cert = create_config_tarfile(certbot_config_dir, certbot_config_tarfile)
+        with open(certbot_config_tarfile, "rb") as fd:
             s3.put_object(
                 ACL="private", Body=fd, Bucket=config_bucket, Key=config_key, ServerSideEncryption="aws:kms",
                 SSEKMSKeyId=config_store_kms_key)
-        unlink(certbot_config_zip)
+        unlink(certbot_config_tarfile)
 
         acm_args = {}
         if acm_certificate_arn:
